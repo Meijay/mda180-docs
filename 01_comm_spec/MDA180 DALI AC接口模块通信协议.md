@@ -96,7 +96,7 @@ FrameType指示数据帧的类型。
 | 5         |                  | 保留未用                                                     |
 | 7         | **Exception**    | 异常                                                         |
 
-####子系统列表
+#### 子系统列表
 
 DALI **ACMI** 数据帧命令类别（CmdCat）如下表所列：
 
@@ -232,10 +232,9 @@ Status | CfgId | CfgLength | CfgValue
 
 | ParameterId（2 bytes） | DataType（1 byte） | 名称                   | 说明                                                         |
 | ---------------------- | ------------------ | ---------------------- | ------------------------------------------------------------ |
-| 0x0010                 | BOOL               | NV_DATT_MONITOR_ENABLE | DALI透传监控使能，开启后模块将返回所有接收到的总线数据，包括异常数据，一般用于总线监控分析。 |
-| 0x0011                 | BOOL               | NV_DATT_ECHO_ENABLE    | DALI透传自发数据帧回复使能，开启后每次透传发送的数据也会返回，否则只返回命令已发送的确认帧。默认为false, |
-| 0x0012                 | BOOL               | NV_DATT_WAITREPLY      | DALI透传等待响应，开启后每次透传均等待总线从机响应直到后向帧超时。 |
-|                        |                    | NV_DATT_NO_ECHO        |                                                              |
+| 0x0010                 | BOOL               | NV_DATT_MONITOR_ENABLE | DALI透传监控使能，开启后模块将返回所有接收到的总线数据，包括异常数据，一般用于总线监控分析。默认为false。 |
+| 0x0011                 | BOOL               | NV_DATT_NO_WAIT_REPLY  | DALI透传等待响应，开启后每次透传均等待总线从机响应直到后向帧超时。默认为false。 |
+| ~~0x0012~~             | ~~BOOL~~           | ~~NV_DATT_ECHO~~       | ~~DALI透传自发数据帧回复使能，开启后每次透传发送的数据也会返回，否则只返回命令已发送的确认帧。默认为false。~~ |
 |                        |                    |                        |                                                              |
 
 
@@ -342,27 +341,23 @@ DALI 透传接口适用于主机自行实现DALI应用层管理，支持在模�
 
 DALI 透传接口（DALI Transparent Transmission Interface）命令包括：
 
-| Direction | FrameType    | 名称                | CmdId | 描述                | 响应                                        |
-| --------- | ------------ | ------------------- | ----- | ------------------- | ------------------------------------------- |
-| 0         | AsyncRequest | **DATT_SEND**       | 0x00  | 发送DALI总线数据    | DEFAULT_RSP，DATT_SEND_CFM，DATT_RECV_IND   |
-| 0         | AsyncRequest | **DATT_SEND8**      | 0x01  | 发送8bit数据        | DEFAULT_RSP，DATT_SEND8_CFM，DATT_RECV_IND  |
-| 0         | AsyncRequest | **DATT_SEND16**     | 0x02  | 发送16bit数据       | DEFAULT_RSP，DATT_SEND16_CFM，DATT_RECV_IND |
-| 0         | AsyncRequest | **DATT_SEND24**     | 0x03  | 发送24bit数据       | DEFAULT_RSP，DATT_SEND24_CFM，DATT_RECV_IND |
-| 0         | AsyncRequest | **DATT_SEND32**     | 0x04  | 发送32bit数据       | DEFAULT_RSP，DATT_SEND32_CFM，DATT_RECV_IND |
-| 0         | Poll         | **DATT_RECV_POLL**  | 0x10  | 查询接收数据        | DATT_RECV_IND                               |
-| 1         | AsyncReport  | **DATT_SEND_CFM**   | 0x00  | 已发送DALI数据确认  | 无 可能和DATT_RECV_IND是一个意思？          |
-| 1         | AsyncReport  | **DATT_SEND8_CFM**  | 0x01  | 已发送8bit数据确认  | 无                                          |
-| 1         | AsyncReport  | **DATT_SEND16_CFM** | 0x02  | 已发送16bit数据确认 | 无                                          |
-| 1         | AsyncReport  | **DATT_SEND24_CFM** | 0x03  | 已发送24bit数据确认 | 无                                          |
-| 1         | AsyncReport  | **DATT_SEND32_CFM** | 0x04  | 已发送32bit数据确认 | 无                                          |
-| 1         | AsyncReport  | **DATT_RECV_IND**   | 0x10  | 接收数据指示        | 无                                          |
+| Direction | FrameType    | 名称               | CmdId | 描述             | 响应                       |
+| --------- | ------------ | ------------------ | ----- | ---------------- | -------------------------- |
+| 0         | AsyncRequest | **DATT_SEND**      | 0x00  | 发送DALI总线数据 | DEFAULT_RSP，DATT_RECV_IND |
+| 0         | AsyncRequest | **DATT_SEND8**     | 0x01  | 发送8bit数据     | DEFAULT_RSP，DATT_RECV_IND |
+| 0         | AsyncRequest | **DATT_SEND16**    | 0x02  | 发送16bit数据    | DEFAULT_RSP，DATT_RECV_IND |
+| 0         | AsyncRequest | **DATT_SEND24**    | 0x03  | 发送24bit数据    | DEFAULT_RSP，DATT_RECV_IND |
+| 0         | AsyncRequest | **DATT_SEND32**    | 0x04  | 发送32bit数据    | DEFAULT_RSP，DATT_RECV_IND |
+| 0         | Poll         | **DATT_RECV_POLL** | 0x10  | 查询接收数据     | DATT_RECV_IND              |
+| 1         | AsyncReport  | **DATT_RECV_IND**  | 0x10  | DALI总线接收指示 | 无                         |
+| 1         | AsyncReport  | **DACM_EVENT_IND** | 0x11  | DALI总线事件汇报 | 无                         |
 
 透传命令的使用流程如下：
 
 * 主机发送DATT_SENDxxx命令；
-* 模块接收后回复DEFAULT_RSP确认；
-* 模块在DALI数据传输完成后汇报DATT_SENDxxx_IND告知主机发送情况；
-* 模块最后向主机发送DATT_RECV_IND指示总线接收情况。
+* 模块接收后立刻回复DEFAULT_RSP确认；
+* 如果MONITOR_ENABLE开启同时ECHO开启，模块在每次DALI数据传输后向主机发送DATT_RECV_IND告知接收到的总线数据帧（自身发送的前向帧）；
+* 如果NO_WAIT_REPLY没有开启，模块最后等待DALI总线后向帧，并向主机发送DATT_RECV_IND指示接收情况。
 
 > **注意**：可以通过发送模块系统配置命令，禁用模块对自己发出的每个DALI数据帧时返回DATT_SENDxxx_CFM响应，而只使用模块在所有数据帧发送完成后回复的DATT_SENDxxx_CFM，这样可以减少中间的数据返回次数，对采用RS485通信的应用，提高了效率。但主机需要设置较长的超时等待以避免再等待多条DALI总线数据发送的过程中判断为超时。等待的时长根据最长时间估计，如同时自动设置DTR1、DTR0、DeviceType和双次发送，模块实际需要向DALI总线发送5次16-bit数据帧，加上帧间等待（尚未考虑多主机应用的冲突重试），需要30ms*5 = 150ms。
 
@@ -400,40 +395,6 @@ Data定义为：
 * **BusDataBits**：要发送的数据位数。0：仅发送起始位；1~64：1~64位，其中8/16/24/32可以用来发送DALI标准的8/16/24/32位数据帧；65~255：无效。
 * **BusData**：DALI总线上要发送的数据。高字节在前，低字节在后，根据BusDataBits从低位到高位依次发送。
 
-
-
-##### DATT_SEND_CFM
-
-Data定义为
-
-| 1 byte  | 1 byte | 1 byte      | 0..N byte     |     1 byte      |     1 byte     |
-| :-----: | :----: | ----------- | ------------- | :-------------: | :------------: |
-| Channel | Status | BusDataBits | BusData[0..N] | BusIdleTimeHigh | BusIdleTimeLow |
-
-其中，
-
-* **Channel**：DALI 通道，1字节。0：所有通道；1~4：通道编号；其他：保留未用。
-* **Status**：发送状态， 1字节。含义参考[DATT Status](#DATT Status)说明。
-* **BusDataBits**：已发送的数据位数。0：仅发送起始位；1~64：1~64位，其中8/16/24/32表示DALI标准的8/16/24/32位数据帧；65~255：无效。
-* **BusData**：DALI总线上已发送的数据。高字节在前，低字节在后，根据BusDataBits从低位到高位依次发送。
-* **BusIdleTimeHigh/BusIdleTimeLow**：  BusIdleTime的高低字节，参考[BusIdleTime](#BusIdleTime)。
-
-###### DATT Status
-
-| 名称                     | 数值 | 含义     |
-| ------------------------ | ---- | -------- |
-| DATT_Success             | 0    | 成功     |
-| DATT_Failure             | 1    | 失败     |
-| DATT_BufferFull          | 2    | 缓存区满 |
-| DATT_TransmissionTimeout | 3    | 传输超时 |
-| DATT_NoReply             | 4    | 无响应   |
-| DATT_BusFailure          | 5    | 总线错误 |
-| DATT_InvalidParameter    | 6    | 非法参数 |
-
-###### BusIdleTime
-
-BusIdleTime表示DALI总线发送或接收一个数据帧之前的空闲时间，取值范围0~0xFFFF。其中0~0xFFFE：表示时间长度为该数值 x 83.3us (即0.2Te，Te表示DALI标准中的1一个half-bit时间，约为416.7us )；0xFFFF：表示时间长度超过0xFFFE表示的值（约为5161ms，即5.16s）
-
 ##### DATT_RECV_IND
 
 Data定义为
@@ -446,9 +407,50 @@ Data定义为
 
 * **Channel**：DALI 通道，1字节。0：所有通道；1~4：通道编号；其他：保留未用。
 * **Status**：接收状态， 1字节。含义参考[DATT Status](#DATT Status)说明。
-* **BusDataBits**：接收的数据位数。0：无数据接收；1~64：1~64位，其中8/16/24/32表示DALI标准的8/16/24/32位数据帧；65~255：无效。
-* **BusData**：DALI总线上接收到的数据。高字节在前，低字节在后，根据BusDataBits从低位到高位依次接收。
+* **BusDataBits**：接收的数据位数， 仅当Status为DATT_Success时有效。0：无数据接收；1~64：1~64位，其中8/16/24/32表示DALI标准的8/16/24/32位数据帧；65~255：无效。
+* **BusData**：DALI总线上接收到的数据， 0~N字节。高字节在前，低字节在后，根据BusDataBits从低位到高位依次接收。N = (BusDataBits + 7) / 8 取整。
 * **BusIdleTimeHigh/BusIdleTimeLow**：  BusIdleTime的高低字节，参考[BusIdleTime](#BusIdleTime)。
+
+###### DATT Status
+
+| 名称                     | 数值 | 含义           |
+| ------------------------ | ---- | -------------- |
+| DATT_Success             | 0    | 成功           |
+| DATT_NoReply             | 1    | 无响应         |
+| DATT_BusFailure          | 2    | 总线错误       |
+| DATT_FramingError        | 3    | 数据帧时序错误 |
+| DATT_InvalidParameter    | 4    | 非法参数       |
+| DATT_TransmissionTimeout | 6    | 传输超时       |
+
+###### BusIdleTime
+
+BusIdleTime表示DALI总线发送或接收一个数据帧之前的空闲时间，取值范围0~0xFFFF。其中0~0xFFFE：表示时间长度为该数值 x 83.3us (即0.2Te，Te表示DALI标准中的1一个half-bit时间，约为416.7us )；0xFFFF：表示时间长度超过0xFFFE表示的值（约为5161ms，即5.16s）
+
+##### DACM_EVENT_IND
+
+当总线状态发生变化时，模块发送该数据帧向主机汇报。
+
+Data定义为
+
+| 1 byte  |  1 byte   |
+| :-----: | :-------: |
+| Channel | EventType |
+
+其中，
+
+* **Channel**：DALI 通道，1字节。0：所有通道；1~4：通道编号；其他：保留未用。
+* **EventType**：事件类型， 1字节。含义参考[DATT EventType](#DATT EventType)说明。
+
+###### DATT EventType
+
+| 名称                   | 数值 | 含义             |
+| ---------------------- | ---- | ---------------- |
+| DATT_EVENT_NONE        | 0    | 无有效事件       |
+| DATT_EVENT_BUS_SHORT   | 2    | DALI总线无电压   |
+| DATT_EVENT_FRAMING_ERR | 3    | 接收数据帧错误   |
+| DATT_EVENT_BUS_OK      | 4    | DALI总线恢复正常 |
+
+
 
 #### DALI 后向帧透传
 
@@ -466,21 +468,6 @@ Data定义为：
 
 * **Channel**：DALI 通道，1字节。0：所有通道；1~4：通道编号；其他：保留未用。
 * **Answer**：DALI 101 中定义的8bit后向帧（Backward Frame ）响应数值， 1字节。
-
-##### DATT_SEND8_CFM
-
-Data定义为
-
-| 1 byte  | 1 byte | 1 byte |     1 byte      |     1 byte     |
-| :-----: | ------ | :----: | :-------------: | :------------: |
-| Channel | Status | Answer | BusIdleTimeHigh | BusIdleTimeLow |
-
-其中，
-
-* **Channel**：DALI 通道，1字节。0：所有通道；1~4：通道编号；其他：保留未用。
-* **Status**：发送状态， 1字节。含义参考[DATT Status](#DATT Status)说明。
-* **Answer**：DALI 101 中定义的8bit后向帧（Backward Frame ）响应数值， 1字节。
-* **BusIdleTimeHigh/BusIdleTimeLow**： BusIdleTime的高低字节，参考[BusIdleTime](#BusIdleTime)。
 
 #### DALI 102 控制装置透传命令 
 
@@ -508,8 +495,6 @@ Data定义为：
 
 控制标志指示透传命令的附加特性。
 
-**TODO：增加StoreActualLevelInDTR0位。**
-
 | bit 7         | bit 6                  | bit 5   | bit 4   | bit 3      | bit [2:0] |
 | ------------- | ---------------------- | ------- | ------- | ---------- | --------- |
 | SetDeviceType | StoreActualLevelInDTR0 | SetDTR1 | SetDTR0 | Send-Twice | Priority  |
@@ -523,22 +508,6 @@ Data定义为：
 - bit 3：**Send-Twice**，两次发送。0： 单次发送；1：发送2次命令（通常用于DALI命令中的Send-Twice命令）
 - bit [2:0]：**Priority**, 传输优先级，默认为0，仅用于支持multi-master的应用中。0： 标准；1~5： 对应DALI标准中的Priority 0~4。6~7：保留。
 
-##### DATT_SEND16_CFM
-
-Data定义为
-
-| 1 byte  | 1 byte | 1 byte  | 1 byte |     1 byte      |     1 byte     |
-| :-----: | ------ | :-----: | :----: | :-------------: | :------------: |
-| Channel | Status | Address | Opcode | BusIdleTimeHigh | BusIdleTimeLow |
-
-其中，
-
-* **Channel**：DALI 通道，1字节。0：所有通道（默认）；1~4：通道编号；其他：保留未用。
-* **Status**：发送状态， 1字节。含义参考[DATT Status](#DATT Status)说明。
-* **Address**：DALI 102 控制装置地址， 1字节。数值为DALI 102 16 bit命令帧中的Address字节。
-* **Opcode**：DALI 102 控制装置操作码， 1字节。数值为DALI 102 16 bit命令帧中的Opcode字节。
-* **BusIdleTimeHigh/BusIdleTimeLow**： BusIdleTime的高低字节，参考[BusIdleTime](#BusIdleTime)。
-
 #### DALI 103 控制装置透传命令
 
 ##### DATT_SEND24
@@ -547,51 +516,35 @@ Data定义为
 
 Data定义为：
 
-| 1 byte  | 1 byte  | 1 byte  | 1 byte | 1 byte        | 1 byte        | 1 byte        |
-| ------- | ------- | ------- | ------ | ------------- | ------------- | ------------- |
-| Channel | Control | Address | OpCode | AdditionData0 | AdditionData1 | AdditionData2 |
+| 1 byte  | 1 byte  | 1 byte  | 1 byte   | 1 byte | 1 byte        | 1 byte        | 1 byte        |
+| ------- | ------- | ------- | -------- | ------ | ------------- | ------------- | ------------- |
+| Channel | Control | Address | Instance | OpCode | AdditionData0 | AdditionData1 | AdditionData2 |
 
 其中：
 
 * **Channel**：DALI 通道，1字节。0：所有通道（默认）；1~4：通道编号；其他：保留未用。
 * **Control**： 控制标志， 1字节。
-* **Address**：DALI 102 控制装置地址， 1字节。
-* **OpCode**：DALI 102 控制装置操作码， 1字节。
+* **Address**：DALI 103 控制设备地址， 1字节。数值为DALI 103 24 bit命令帧中的Address字节。
+* **Instance**：DALI 103 控制设备实例，1字节。数值为DALI 103 24 bit命令帧中的Instance字节。
+* **Opcode**：DALI 103 控制设备操作码，1字节。数值为DALI 103 24 bit命令帧中的Opcode字节。
 * **AdditionData0**：附加数据字节0。
 * **AdditionData1**：附加数据字节1。
 * **AdditionData2**：附加数据字节2。
 
 **控制标志 Control **
 
-| bit 7 | bit 6 | bit 5      | bit 4   | bit 3         | bit [2:0] |
-| ----- | ----- | ---------- | ------- | ------------- | --------- |
-| 保留  | 保留  | Send-Twice | SetDTR0 | SetDeviceType | Priority  |
+| bit 7 | bit 6   | bit 5   | bit 4   | bit 3      | bit [2:0] |
+| ----- | ------- | ------- | ------- | ---------- | --------- |
+| 保留  | SetDTR2 | SetDTR1 | SetDTR0 | Send-Twice | Priority  |
 
 数据位定义如下：
 
 - bit 7：保留未用，默认为0。
-- bit 6：**Priority**, 传输优先级，仅用于支持multi-master的应用中。0： 标准（默认）；1~5： 对应DALI标准中的Priority 0~4。
-- bit 5：**Send-Twice**，两次发送。0： 单次发送；1：发送2次命令（通常用于DALI命令中的Send-Twice命令）
+- bit 6：**SetDTR2**，设置DTR2。0： 不需要额外发送DTR2；1：自动发送DTR2命令，DTR2的数值在数据帧的AdditionData2中，通常用于需要同时指定DTR0、DTR1、DTR2或其中2个的命令。
+- bit 5：**SetDTR1**，设置DTR1。0： 不需要额外发送DTR1；1：自动发送DTR1命令，DTR1的数值在数据帧的AdditionData1中，通常用于需要同时指定DTR0和DTR1的命令。
 - bit 4：**SetDTR0**，设置DTR0。0： 不需要额外发送DTR0；1：自动发送DTR0命令，DTR0的数值在数据帧的AdditionData0中，通常用于STORE_XXX配置命令。
-- bit 3：**SetDeviceType**， 设置DeviceType。0：不需要设置Device Type；1：自动发送Enable Device Type x命令，Device Type数值在数据帧的AdditionData，通常用于Device Type相关的扩展命令。
+- bit 3：**Send-Twice**，两次发送。0： 单次发送；1：发送2次命令（通常用于DALI命令中的Send-Twice命令）
 - bit [2:0]：**Priority**, 传输优先级，默认为0，仅用于支持multi-master的应用中。0： 标准；1~5： 对应DALI标准中的Priority 0~4。6~7：保留。
-
-##### DATT_SEND24_CFM
-
-Data定义为
-
-| 1 byte  | 1 byte | 1 byte  |  1 byte  | 1 byte |     1 byte      |     1 byte     |
-| :-----: | ------ | :-----: | :------: | :----: | :-------------: | :------------: |
-| Channel | Status | Address | Instance | Opcode | BusIdleTimeHigh | BusIdleTimeLow |
-
-其中，
-
-* **Channel**：DALI 通道，1字节。0：所有通道（默认）；1~4：通道编号；其他：保留未用。
-* **Status**：发送状态， 1字节。含义参考[DATT Status](#DATT Status)说明。
-* **Address**：DALI 103 控制设备地址， 1字节。数值为DALI 103 24 bit命令帧中的Address字节。
-* **Instance**：DALI 103 控制设备实例，1字节。数值为DALI 103 24 bit命令帧中的Instance字节。
-* **Opcode**：DALI 103 控制设备操作码，1字节。数值为DALI 103 24 bit命令帧中的Opcode字节。
-* **BusIdleTimeHigh/BusIdleTimeLow**：  BusIdleTime的高低字节，参考[BusIdleTime](#BusIdleTime)。
 
 #### DALI 105 固件更新透传命令
 
@@ -611,29 +564,16 @@ Data定义为：
 * **Address**：DALI 105 地址字节， 1字节。
 * **Opcode1/2/3**：DALI 105 操作码， 3字节。
 
-##### DATT_SEND32_CFM
-
-Data定义为
-
-| 1 byte  | 1 byte | 1 byte  | 1 byte  | 1 byte  | 1 byte  |     1 byte      |     1 byte     |
-| :-----: | ------ | :-----: | :-----: | ------- | :-----: | :-------------: | :------------: |
-| Channel | Status | Address | Opcode1 | Opcode2 | Opcode3 | BusIdleTimeHigh | BusIdleTimeLow |
-
-其中，
-
-* **Channel**：DALI 通道，1字节。0：所有通道（默认）；1~4：通道编号；其他：保留未用。
-* **Status**：发送状态， 1字节。含义参考[DATT Status](#DATT Status)说明。
-* **Address**：DALI 105 地址字节， 1字节。
-* **Opcode1/2/3**：DALI 105 操作码， 3字节。
-* **BusIdleTimeHigh/BusIdleTimeLow**：  BusIdleTime的高低字节，参考[BusIdleTime](#BusIdleTime)。
-
 #### DALI 透传命令应用示例
 
 ##### 102控制装置示例
 
 以下实例以DALI通道1为例，所有Channel为0x01。
 
+系统参数配置：
 
+* NV_DATT_MONITOR_ENABLE = true
+* NV_DATT_NO_WAIT_REPLY = false
 
 **主机发送广播开灯100%命令**
 
@@ -652,7 +592,7 @@ Data定义为
  模块依次返回：
 
 1. SyncResponse：DEFAULT_RSP（默认应答帧），表示已正确接收并开始执行命令；
-2. AsyncReport：DATT_SEND16_CFM（已发送16bit数据指示帧），汇报发送状态。
+2. AsyncReport：DATT_RECV_IND（已发送16bit数据指示帧），汇报发送状态。
 
 3. AsyncReport：DATT_RECV_IND，指示无需DALI总线响应数据。
 
@@ -675,7 +615,7 @@ Data定义为
  模块依次返回：
 
 1. SyncResponse：DEFAULT_RSP，表示已正确接收并开始执行命令；
-2. AsyncReport：DATT_SEND16_CFM，汇报发送状态。
+2. AsyncReport：DATT_RECV_IND，汇报发送状态。
 3. AsyncReport：DATT_RECV_IND，指示总线上接收到的响应帧（正常情况下为8 bit 后向帧数据）或DALI总线在标准允许的时间内未接收到响应帧。
 
 
@@ -697,9 +637,9 @@ Data定义为
  模块依次返回：
 
 1. SyncResponse：DEFAULT_RSP，表示已正确接收并开始执行命令。
-2. AsyncReport：DATT_SEND16_CFM，汇报已发送“DTR0”（AdditionData0）命令。
-3. AsyncReport：DATT_SEND16_CFM，汇报已发送第1次“SET POWER ON LEVEL (DTR0)”命令。
-4. AsyncReport：DATT_SEND16_CFM，汇报已发送第2次“SET POWER ON LEVEL (DTR0)”命令。
+2. AsyncReport：DATT_RECV_IND，汇报已发送“DTR0”（AdditionData0）命令。
+3. AsyncReport：DATT_RECV_IND，汇报已发送第1次“SET POWER ON LEVEL (DTR0)”命令。
+4. AsyncReport：DATT_RECV_IND，汇报已发送第2次“SET POWER ON LEVEL (DTR0)”命令。
 5. AsyncReport：DATT_RECV_IND，指示无需总线响应。
 
 
@@ -732,9 +672,9 @@ DALI 102中向控制装置的指定MemoryBank的位置写入数据时需要分�
  模块依次返回：
 
 1. SyncResponse：DEFAULT_RSP，表示已正确接收并开始执行命令。
-2. AsyncReport：DATT_SEND16_CFM，汇报已发送“DTR0”（AdditionData0）命令。
-3. AsyncReport：DATT_SEND16_CFM，汇报已发送第1次“ENABLE WRITE MEMORY”命令。
-4. AsyncReport：DATT_SEND16_CFM，汇报已发送第2次“ENABLE WRITE MEMORY”命令。
+2. AsyncReport：DATT_RECV_IND，汇报已发送“DTR0”（AdditionData0）命令。
+3. AsyncReport：DATT_RECV_IND，汇报已发送第1次“ENABLE WRITE MEMORY”命令。
+4. AsyncReport：DATT_RECV_IND，汇报已发送第2次“ENABLE WRITE MEMORY”命令。
 5. AsyncReport：DATT_RECV_IND，指示无需总线响应。
 
 （2）主机发送 AsyncRequest请求帧，向DALI总线发送“DTR1”命令设置MemoryBank序号为136，其中Data内容为：
@@ -752,7 +692,7 @@ DALI 102中向控制装置的指定MemoryBank的位置写入数据时需要分�
  模块依次返回：
 
 1. SyncResponse：DEFAULT_RSP，表示已正确接收并开始执行命令。
-2. AsyncReport：DATT_SEND16_CFM，汇报已发送“DTR1（data）”命令。
+2. AsyncReport：DATT_RECV_IND，汇报已发送“DTR1（data）”命令。
 3. AsyncReport：DATT_RECV_IND，指示无需总线响应。
 
 （3）主机发送 AsyncRequest请求帧，“WRITE MEMORY LOCATION(DTR1,DTR0, 55) ”向Memory Bank的指定位置写入数据32，其中Data内容为：
@@ -770,7 +710,7 @@ DALI 102中向控制装置的指定MemoryBank的位置写入数据时需要分�
  模块依次返回：
 
 1. SyncResponse：DEFAULT_RSP，表示已正确接收并开始执行命令。
-2. AsyncReport：DATT_SEND16_CFM，汇报已发送“WRITE MEMORY LOCATION(DTR1,DTR0, data)”命令。
+2. AsyncReport：DATT_RECV_IND，汇报已发送“WRITE MEMORY LOCATION(DTR1,DTR0, data)”命令。
 3. AsyncReport：DATT_RECV_IND，指示无需总线响应。
 
 
@@ -800,9 +740,9 @@ DALI 102标准中读Memory Bank数据分为以下几个步骤：
  模块依次返回：
 
 1. SyncResponse：DEFAULT_RSP，表示已正确接收并开始执行命令。
-2. AsyncReport：DATT_SEND16_CFM，汇报已发送“DTR1”（AdditionData1）命令。
-3. AsyncReport：DATT_SEND16_CFM，汇报已发送“DTR0”（AdditionData0）命令。
-4. AsyncReport：DATT_SEND16_CFM，汇报已发送“READ MEMORY LOCATION(DTR1,DTR0) ”命令。
+2. AsyncReport：DATT_RECV_IND，汇报已发送“DTR1”（AdditionData1）命令。
+3. AsyncReport：DATT_RECV_IND，汇报已发送“DTR0”（AdditionData0）命令。
+4. AsyncReport：DATT_RECV_IND，汇报已发送“READ MEMORY LOCATION(DTR1,DTR0) ”命令。
 5. AsyncReport：DATT_RECV_IND，指示总线上接收到的响应帧（正常情况下为8 bit 后向帧数据）或DALI总线在标准允许的时间内未接收到响应帧。
 
 
@@ -832,10 +772,10 @@ DALI 102标准中读Memory Bank数据分为以下几个步骤：
  模块依次返回：
 
 1. SyncResponse：DEFAULT_RSP，表示已正确接收并开始执行命令。
-2. AsyncReport：DATT_SEND16_CFM，汇报已发送“DTR0”（AdditionData0）命令。
-3. AsyncReport：DATT_SEND16_CFM，汇报已发送“ENABLE DEVICE TYPE X”（AdditionData2）命令。
-4. AsyncReport：DATT_SEND16_CFM，汇报已发送第1次“STORE DTR AS FAST FADE TIME”命令。
-5. AsyncReport：DATT_SEND16_CFM，汇报已发送第2次“STORE DTR AS FAST FADE TIME”命令。
+2. AsyncReport：DATT_RECV_IND，汇报已发送“DTR0”（AdditionData0）命令。
+3. AsyncReport：DATT_RECV_IND，汇报已发送“ENABLE DEVICE TYPE X”（AdditionData2）命令。
+4. AsyncReport：DATT_RECV_IND，汇报已发送第1次“STORE DTR AS FAST FADE TIME”命令。
+5. AsyncReport：DATT_RECV_IND，汇报已发送第2次“STORE DTR AS FAST FADE TIME”命令。
 6. AsyncReport：DATT_RECV_IND，指示无需总线响应。
 
 ##### 103控制设备示例
