@@ -6,11 +6,13 @@
 
 
 
-本文档定义了MDA180 DALI **ACI** （**A**pplication **C**ontroller **I**nterface，应用控制器模块接口 ）通信协议。
+本文档定义了MDA180 DALI **ACIP** （**A**pplication **C**ontroller **I**nterface **P**rotocal，应用控制器模块接口通信协议)。
 
-## UART 标准协议
+## 接口
 
-### 硬件接口
+### UART
+
+#### 硬件接口
 
 硬件接口默认为通用异步串行口(UART)，3.3V TTL逻辑电平。
 
@@ -20,30 +22,27 @@
 * **MDA_RXD**：模块接收。
 * **MDA_NRST**： 模块MCU复位，低电平复位，高电平释放。
 
-### UART参数设置
+#### 参数设置
 
-UART通信参数设置为：**115200bps**, **8**-**N**-**1**。 每个字节的传输时间约为86.8us。
+UART通信默认参数设置为：**115200bps**, **8**-**N**-**1**。 每个字节的传输时间约为86.8us。
 
-### UART 传输时序
+#### 传输时序
 * 数据帧内字节传输间隔  < 1.5个字节传输长度 =~130us。
 * 数据帧之间的静默时间  > 3.5个字节传输长度 =~300us。
 
-## 数据帧格式
+#### 数据帧格式
 
-### 一般格式
+**数据帧**的长度为 6~255 字节， 组成为：
 
-**数据帧**的长度为 6~256 字节， 组成为：
-
-| 1 byte |  1 byte  | 3~253 bytes | 1 byte |
-| :----: | :------: | :---------: | :----: |
-|  SOF   | SiteAddr |     PDU     |  FCS   |
+| 1 byte | 3~252 bytes | 1 byte |
+| :----: | :---------: | :----: |
+|  SOF   |     PDU     |  FCS   |
 
 其中：
 
-- **SOH**:  帧起始标志，1字节，等于0xFE。（备注：如果使用了数据帧间的时序要求，起始字节似乎没有必要）。
-- **SiteAddr**： 从站地址，1字节，取值范围0~255，使用UART接口默认为0；使用RS485接口时表示从站地址，0表示广播。
-- **PDU**: PDU（**P**rotocol **D**ata **U**nit，协议数据单元）， 3~253字节，格式含义根据FrameType不同分别定义。
-- **FCS**:  1 字节，SiteAddr和PDU部分内容按字节 XOR 校验和 。
+- **SOF**:  **S**tart **O**f **F**rame，帧起始标志，1字节，等于0xFE，用于帧同步。
+- **PDU**: PDU（**P**rotocol **D**ata **U**nit，协议数据单元），格式含义根据FrameType不同分别定义。
+- **FCS**:  1 字节，PDU部分内容按字节 XOR 校验和 。
 
 
 
@@ -63,26 +62,61 @@ unsigned char calcFCS(unsigned char *pMsg, unsigned char len)
 
 
 
+### RS485
+
+#### 硬件接口
+
+* MDA_TXD：连接至RS485收发器的发送信号引脚
+
+* MDA_RXD：连接至RS485收发器的接收信号引脚
+
+* MDA_DE：连接至RS485收发器的发送使能引脚
+
+#### 参数设置
+
+RS485通信默认参数设置为：**19200bps**, **8**-**N**-**1**。 每个字节的传输时间约为520.8us。
+
+#### 传输时序
+
+* 数据帧内字节传输间隔  < 1.5个字节传输长度 =~781us。
+* 数据帧之间的静默时间  > 3.5个字节传输长度 =~1823us。
+
+#### 数据帧格式
+
+**数据帧**的长度为 6~255 字节， 组成为：
+
+| 1 byte |  1 byte  | 3~252 bytes | 1 byte |
+| :----: | :------: | :---------: | :----: |
+|  SOF   | SiteAddr |     PDU     |  FCS   |
+
+其中：
+
+- **SOF**:  **S**tart **O**f **F**rame，帧起始标志，1字节，等于0xFE，用于帧同步。（备注：如果使用了数据帧间的时序要求，起始字节似乎没有必要）。
+- **SiteAddr**： 从站地址，1字节，取值范围0~255，使用RS485接口时表示从站地址，0表示广播。
+- **PDU**: PDU（**P**rotocol **D**ata **U**nit，协议数据单元）， 格式含义根据FrameType不同分别定义。
+- **FCS**:  1 字节，SiteAddr和PDU部分内容按字节 XOR 校验和 ，计算方法参考UART部分说明。
+
+## PDU 协议数据单元
+
 ### PDU格式
 
 PDU的组成如下：
 
-| 1 byte | 1 byte | 1 byte | 1 byte | 0~249 byte(s) |
-| :----: | :----: | :----: | :----: | :-----------: |
-| Length |  Seq   | Header | CmdId  |     Data      |
+| 1 byte | 1 byte  | 1 byte | 0~249 byte(s) |
+| :----: | :-----: | :----: | :-----------: |
+| Length | Control | CmdId  |     Data      |
 
 其中：
 
 - **Length**：Data 长度， 1字节，取值范围 0~249。
-- **Seq**：帧序列号，1字节。一般由主机指定，模块返回与之相关的响应帧应该使用相同的序列号以便主机追溯， 通常应采取循环递增的策略。模块主动发起的传输该位由模块自行指定，通常默认为0。**TODO：因为实际使用过程中并不需要太多的buffer，所以可以仅使用4bit（0~15）共15个数字来循环，其他的bits可以用作控制位（合并下面的Header），以减少传输数据**
-- **Header**：帧头， 1字节。
-  - Bit[7]：**Direction**， 方向。0：主机发送请求；1：模块发送响应或报告；
-  - Bit[6:4]：**FrameType**， 帧类型，取值0~7。
-  - Bit[3:0]：**CmdCat**， 命令类别，取值0~15。具体取值含义参见DALI ACI段落。
+- **Control**： 控制，1字节。
+  - bit[7]：**Direction**， 方向。0：主机发送请求；1：模块发送响应或报告；
+  - bit[6:4]：**FrameType**， 帧类型，取值0~7。
+  - bit[3:0]：**Seq**, 帧序列号，取值范围0~15。一般由主机指定，模块返回与之相关的响应帧应该使用相同的序列号以便主机追溯， 通常应采取循环递增的策略。模块主动发起的传输该位由模块自行指定，通常默认为0。模块内部数据帧的接收缓冲区不会超过15帧。
 - **CmdId**：命令标识， 1字节，取值范围0~255。
 - **Data**: 有效数据，0~249字节。
 
-#### 帧类型列表
+### 帧类型列表
 
 TODO：同步和异步可以用Control中的一个bit：bWaitResponse表示。
 
@@ -98,20 +132,7 @@ FrameType指示数据帧的类型。
 | 5         |                  | 保留未用                                                     |
 | 7         | **Exception**    | 异常                                                         |
 
-#### 子系统列表
-
-DALI **ACMI** 数据帧命令类别（CmdCat）如下表所列：
-
-| CmdCat |             Name              |  Description  |
-| :----: | :---------------------------: | :-----------: |
-|   0    |           Reserved            |     保留      |
-|   1    |       System Management       |   系统管理    |
-|   2    |    DALI Channel Management    | DALI 通道管理 |
-|   3    | DALI Transparent Transmission |   DALI 透传   |
-|   4    |   DALI Application Command    | DALI 应用命令 |
-|  5~15  |           Reserved            |     保留      |
-
-#### 默认应答帧（DEFAULT_RSP）
+### 默认应答帧（DEFAULT_RSP）
 
 TODO： 将DEFAULT_RSP改成单独一类ACK。这样就可以适用于SyncRequest和AsyncRequest。
 
@@ -119,13 +140,12 @@ TODO： 将DEFAULT_RSP改成单独一类ACK。这样就可以适用于SyncReques
 
 | 字段           | 数值             | 说明                      |
 | -------------- | ---------------- | ------------------------- |
-| Length         | 0              |                           |
-| Seq | 和主机请求帧相同 |  |
-| Header         | 0b1011xxxx       | Direction=1，模块发送响应; FrameType=3，同步响应; CmdCat和主机请求帧中的数据相同。 |
-| CmdId  | 和主机请求帧相同 |  |
+| Length         | 0              |  |
+| Seq | 0b1011xxxx | Seq: 和主机请求帧相同；Direction=1，模块发送响应; FrameType=3，同步响应。 |
+| CmdId  | 0xYY | 和主机请求帧相同. |
 | Data           |      | 无。 |
 
-#### 异常帧（Exception Frame）
+### 异常帧（Exception Frame）
 
 TODO：将Exception Frame改为NACK。这样和ACK类数据帧合并为一类。
 
@@ -181,8 +201,6 @@ PDU定义如下：
 ## 接口命令定义
 
 ### 系统管理接口
-
-CmdCat为  0x01。
 
 模块系统管理接口（System Management Interface）命令包括：
 
@@ -246,7 +264,6 @@ Status | CfgId | CfgLength | CfgValue
 
 
 ### DALI 通道管理接口
-CmdCat  为  0x02。
 DALI 通道管理接口（DALI Channel Management Interface）命令包括：
 
 | Direction | FrameType    | 名称                        | CmdId | 描述                                 | 响应                    |
@@ -341,8 +358,6 @@ Data 内容定义如下：
 ##### DACM_CONTACT_STATUS_RSP
 
 ### DALI 透传接口
-CmdCat为  0x03。
-
 DALI 透传接口适用于主机自行实现DALI应用层管理，支持在模块DALI通道总线上收发DALI数据帧。
 
 DALI 透传接口（DALI Transparent Transmission Interface）命令包括：
@@ -789,8 +804,6 @@ DALI 102标准中读Memory Bank数据分为以下几个步骤：
 待添加。
 
 ### DALI 应用命令接口
-
-CmdCat为 0x04。
 
 DALI 应用命令接口（DALI Application Command Interface）用来对底层DALI数据传输进行封装，为上层业务提供简单的调用接口。使用该接口可以减少主机和模块的交互次数从而降低主机对DALI底层传输指令的控制需求，也可以提高通信效率改善用户体验，当然和透传接口相比，无法做到对DALI总线数据传输细节的监控。这些接口命令包括：
 
