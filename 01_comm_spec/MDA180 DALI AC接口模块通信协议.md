@@ -40,9 +40,9 @@ UART通信默认参数设置为：**115200bps**, **8**-**N**-**1**。 每个字�
 
 其中：
 
-- **SOF**:  **S**tart **O**f **F**rame，帧起始标志，1字节，等于0xFE，用于帧同步。
+- **SOF**:  **S**tart **O**f **F**rame，帧起始标志，等于0xFE，用于帧同步。
 - **PDU**: PDU（**P**rotocol **D**ata **U**nit，协议数据单元），格式含义根据FrameType不同分别定义。
-- **FCS**:  1 字节，PDU部分内容按字节 XOR 校验和 。
+- **FCS**:  **F**rame **C**heck **S**ignature，帧校验标志，PDU部分内容按字节 XOR 校验和 。
 
 
 
@@ -102,23 +102,32 @@ RS485通信默认参数设置为：**19200bps**, **8**-**N**-**1**。 每个字�
 
 PDU的组成如下：
 
-| 1 byte | 1 byte  | 1 byte | 0~249 byte(s) |
-| :----: | :-----: | :----: | :-----------: |
-| Length | Control | CmdId  |     Data      |
+| 1 byte |    1 byte    | 1 byte | 0~249 byte(s) |
+| :----: | :----------: | :----: | :-----------: |
+| Length | FrameControl | CmdId  |     Data      |
 
 其中：
 
 - **Length**：Data 长度， 1字节，取值范围 0~249。
-- **Control**： 控制，1字节。
-  - bit[7]：**Direction**， 方向。0：主机发送请求；1：模块发送响应或报告；
-  - bit[6:4]：**FrameType**， 帧类型，取值0~7。
-  - bit[3:0]：**Seq**, 帧序列号，取值范围0~15。一般由主机指定，模块返回与之相关的响应帧应该使用相同的序列号以便主机追溯， 通常应采取循环递增的策略。模块主动发起的传输该位由模块自行指定，通常默认为0。模块内部数据帧的接收缓冲区不会超过15帧。
+- **FrameControl**： 控制，1字节，详见 [FrameControl 字节](#FrameControl 字节)。
 - **CmdId**：命令标识， 1字节，取值范围0~255。
 - **Data**: 有效数据，0~249字节。
 
+#### FrameControl 字节
+
+|   Bit 7   |  bit 6:4  | bit 3:0  |
+| :-------: | :-------: | :------: |
+| Direction | FrameType | FrameSeq |
+
+其中：
+
+- bit[7]：**Direction**， 方向。0：主机发送请求；1：模块发送响应或报告；
+- bit[6:4]：**FrameType**， 帧类型，取值0~7。
+- bit[3:0]：**FrameSeq**, 帧序列号，取值范围0~15。一般由主机指定，模块返回与之相关的响应帧应该使用相同的序列号以便主机追溯（**TrackSeq**?）， 通常应采取循环递增的策略。模块主动发起的传输该位由模块自行指定，通常默认为0。模块内部数据帧的接收缓冲区不会超过8帧，因此正常情况下主机应该在0~7范围内循环，当模块无法确定帧序列号或者模块主动发起数据帧传输时取值15。
+
 ### 帧类型列表
 
-TODO：同步和异步可以用Control中的一个bit：bWaitResponse表示。
+TODO：同步和异步可以用Control中的一个bit：bWaitResponse表示。bWaitResponse更适合DALI相关的命令中指定，或者通过参数配置来设定全局选项。
 
 FrameType指示数据帧的类型。
 
@@ -129,49 +138,62 @@ FrameType指示数据帧的类型。
 | 2         | **AsyncRequest** | 异步请求，主机发送给模块                                     |
 | 3         | **SyncResponse** | 同步响应，接收到SyncRequest后立即发出的响应，一般用于模块发送给主机 |
 | 4         | **AsyncReport**  | 异步汇报，一般用于模块发送给主机                             |
-| 5         |                  | 保留未用                                                     |
+| 5         | **Reserved**     | 保留未用                                                     |
+| 6         | **AckNak**       | 应答，包括ACK和NACK。                                        |
 | 7         | **Exception**    | 异常                                                         |
 
-### 默认应答帧（DEFAULT_RSP）
+### 应答帧（AckNack）
 
-TODO： 将DEFAULT_RSP改成单独一类ACK。这样就可以适用于SyncRequest和AsyncRequest。
+应答帧仅用于模块确认接收到主机的请求帧。
 
-默认应答帧仅用于模块确认接收到主机的请求帧， 一般用于无需响应数据的请求帧。其PDU部分的内容定义如下：
+* ACK表示数据帧接收正常。
+
+* NACK表示数据帧错误或者模块内部接收缓冲区满无法处理，主机需要检查错误或者等待重传。
+
+应答帧的PDU部分内容定义如下：
 
 | 字段           | 数值             | 说明                      |
 | -------------- | ---------------- | ------------------------- |
 | Length         | 0              |  |
-| Seq | 0b1011xxxx | Seq: 和主机请求帧相同；Direction=1，模块发送响应; FrameType=3，同步响应。 |
-| CmdId  | 0xYY | 和主机请求帧相同. |
+| FrameControl | 0b1110xxxx | Direction=1； FrameType=6；FrameSeq: ACK时和主机请求帧相同，NACK时为15。 |
+| CmdId  |  | 表示AckNack的类型。0：ACK；1~255：NACK，参考NACK Code。 |
 | Data           |      | 无。 |
+
+**NACK 代码 **
+
+| NAK Code | 名称               | 含义                                      |
+| -------- | ------------------ | ----------------------------------------- |
+| 1        | Illegal Frame      | 非法数据帧，FrameType不是模块支持的类型。 |
+| 2        | Module Buffer Full | 模块接收缓冲区满，无法接收数据帧。        |
+| 3        | Module Not Ready   | 模块未就绪，无法处理所请求的命令。        |
+| 4~255    | Reserved           | 保留未用。                                |
+
+
 
 ### 异常帧（Exception Frame）
 
-TODO：将Exception Frame改为NACK。这样和ACK类数据帧合并为一类。
+异常帧用于模块向主机汇报数据请求执行过程中的错误，异常代码存放在异常帧的Data中。
 
-异常帧用于模块向主机指示接收到的数据帧中存在错误，无法执行。
-
-异常代码存放在异常帧的Data中。
+> 异常帧和NACK帧是有区别的，异常帧建立在主机请求已经ACK后在执行过程中出现的错误。NACK帧是模块在数据接收阶段检测到数据帧错误或模块无法处理。
 
 PDU定义如下：
 
-| 字段   | 数值             | 说明                                                         |
-| ------ | ---------------- | ------------------------------------------------------------ |
-| Length | 1                |                                                              |
-| Seq    | 和主机请求帧相同 |                                                              |
-| Header | 0b1011xxxx       | Direction=1，模块发送响应; FrameType=7，异常帧; CmdCat和主机请求帧中的数据相同。 |
-| CmdId  | 和主机请求帧相同 |                                                              |
-| Data   | ErrorCode        | 数据长度为1字节，表示错误代码，含义详见“错误代码”列表。      |
+| 字段         | 数值       | 说明                                                    |
+| ------------ | ---------- | ------------------------------------------------------- |
+| Length       | 1          |                                                         |
+| FrameControl | 0b1111xxxx | Direction=1; FrameType=7; FrameSeq和主机请求帧相同。    |
+| CmdId        |            | 和请求帧相同。                                          |
+| Data         | ErrorCode  | 数据长度为1字节，表示错误代码，含义详见“错误代码”列表。 |
 
 **错误代码列表**
 
-| ErrorCode | 名称                   | 含义                                                |
-| --------- | ---------------------- | --------------------------------------------------- |
-| 1         | Illegal Command        | 非法命令，CmdCat和CmdId组合不是模块支持的命令功能。 |
-| 2         | Illegal Data           | 非法数据，数据帧携带的Data不是合法数据。            |
-| 3         | Module Service Busy    | 模块服务忙，无法处理所请求的命令。                  |
-| 4         | Module Service Failure | 模块服务失效，执行请求命令失败。                    |
-| 5         |                        |                                                     |
+| ErrorCode | 名称                   | 含义                                                         |
+| --------- | ---------------------- | ------------------------------------------------------------ |
+| 1         | Illegal Command        | 非法命令，CmdCat和CmdId组合不是模块支持的命令功能。          |
+| 2         | Illegal Data           | 非法数据，数据帧携带的Data不是合法数据。                     |
+| 3         | Module Service Busy    | 模块服务忙，无法处理所请求的命令。                           |
+| 4         | Module Service Failure | 模块服务失效，执行请求命令失败。                             |
+| 5         |                        | TODO：增加每一个接口大类的错误代码，为请求执行错误进行统一处理。 |
 
 ## 通信流程
 
@@ -181,9 +203,9 @@ PDU定义如下：
 
 模块响应可能包含多个响应数据帧，如下：
 
-* 模块接收到主机请求后，立即回复默认应答帧（DEFAULT_RSP），此应答中Data部分只包含和主机请求帧中相同的CommandType和CmdId， 用于确认主机请求帧的正确接收；如模块判断接收帧功能非法或自身无法提供提供所需要的服务，则立即返回错误帧（Exception）。
-* 若该请求为异步操作（如发送DALI透传命令或执行DALI应用命令），则模块在DALI发送完成后向主机发送汇报数据帧。
-* 若该请求为包含多个步骤的异步操作（如DALI透传查询命令或DALI应用命令），则模块在异步操作的每一步状态变化时（例如收到DALI总线上的控制装置响应数据）都会向主机发送汇报数据帧。
+* 模块接收到主机请求后，检查数据帧是否合法并立即回复应答帧（AckNack），此应答中Data部分只包含和主机请求帧中相同的FrameSeq， 用于确认主机请求帧的正确接收。如模块在执行请求时出现错误，则返回异常帧（Exception）。
+* 若该请求为异步操作（如发送DALI透传命令或执行DALI应用命令），则模块在DALI发送完成后根据主机的请求中选项标志可以向主机发送汇报数据帧。
+* 若该请求为包含多个步骤的异步操作（如DALI透传查询命令或DALI应用命令），则模块在异步操作的每一步状态变化时（例如收到DALI总线上的控制装置响应数据）都可以向主机发送汇报数据帧。
 
 多个响应之间的超时控制请参考每个数据帧的定义说明。
 
@@ -197,26 +219,72 @@ PDU定义如下：
 
 > 注意： 若为RS485应用，应禁用模块主动上报功能，而由主机采用轮询的方式来读取模块上报的消息。
 
+### 数据重传
+
+当接收方接收的数据出现以下问题时：
+
+* 数据帧错误：FCS校验错误、Control字节非法和对应帧类型的Length非法
+* 模块缓冲区满或未就绪
 
 ## 接口命令定义
+
+| 名称                | CmdId | Dir | FrameType    | 描述             | 响应                   |
+| ------------------- | ----- | --------- | ------------ | ---------------- | ---------------------- |
+| **SYS_RESET_REQ**   | 0x00  | 0         | SyncRequest  | 请求模块复位     | AckNack，SYS_RESET_IND |
+| **SYS_RESET_IND**   | 0x80  | 1         | AsyncReport  | 模块复位指示     |                      |
+| **SYS_VERSION**     | 0x01  | 0         | SyncRequest  | 获取模块版本信息 | SYS_VERSION_RSP        |
+| **SYS_VERSION_RSP** | 0x81 | 1         | SyncResponse |                  |                        |
+| **SYS_READ_CFG**    | 0x02  | 0         | SyncRequest  | 读取模块配置数据 | SYS_READ_CFG_RSP       |
+| **SYS_READ_CFG_RSP** | 0x82 | 1 | SyncResponse | 模块配置读取响应 |  |
+| **SYS_WRITE_CFG**   | 0x03 | 0         | SyncRequest  | 写入模块配置数据 | SYS_WRITE_CFG_RSP      |
+| **SYS_WRITE_CFG_RSP** | 0x83 | 1 | SyncResponse | 模块配置写入响应 |  |
+| **DACM_INFO**               | 0x10 | 0         | SyncRequest  | 获取DALI信息                         | DACM_INFO_RSP           |
+| **DACM_INFO_RSP** | 0x90 | 1 | SyncResponse | DALI信息响应 |  |
+| **DACM_START**              | 0x11 | 0         | SyncRequest  | 开启DALI通道                         | AckNack                 |
+| **DACM_STOP**               | 0x12 | 0         | SyncRequest  | 关闭DALI通道                         | AckNack                 |
+| **DACM_STATUS**             | 0x13 | 0         | SyncRequest  | 获取DALI通道状态                     | DACM_STATUS_RSP         |
+| **DACM_STATUS_RSP** | 0x93 | 1 | SyncResponse | DALI通道状态响应 |  |
+| **DACM_CONTACT_ON**         | 0x14 | 0         | SyncRequest  | 打开DALI通道对应的回路干接点信号     | AckNack                 |
+| **DACM_CONTACT_OFF**        | 0x15 | 0         | SyncRequest  | 关闭DALI通道对应的回路干接点信号     | AckNack                 |
+| **DACM_CONTACT_STATUS**     | 0x16 | 0         | SyncRequest  | 获取DALI通道对应的回路干接点信号状态 | DACM_CONTACT_STATUS_RSP |
+| **DACM_CONTACT_STATUS_RSP** | 0x96 | 1         | SyncResponse | DALI通道对应的回路干接点信号状态响应 |                       |
+| **DATT_SEND**      | 0x20 | 0         | AsyncRequest | 发送DALI总线数据 | AckNack，DATT_RECV_IND |
+| **DATT_SEND8**     | 0x21 | 0         | AsyncRequest | 发送8bit数据     | AckNack，DATT_RECV_IND |
+| **DATT_SEND16**    | 0x22 | 0         | AsyncRequest | 发送16bit数据    | AckNack，DATT_RECV_IND |
+| **DATT_SEND24**    | 0x23 | 0         | AsyncRequest | 发送24bit数据    | AckNack，DATT_RECV_IND |
+| **DATT_SEND32**    | 0x24 | 0         | AsyncRequest | 发送32bit数据    | AckNack，DATT_RECV_IND |
+| **DATT_RECV_POLL** | 0x29 | 0         | Poll         | 查询接收数据     | DATT_RECV_IND          |
+| **DATT_RECV_IND**  | 0xA9 | 1         | AsyncReport  | DALI总线接收指示 |                      |
+| **DATT_EVENT_IND** | 0xAA | 1         | AsyncReport  | DALI总线事件汇报 |  |
+| **DAA_BPS_CTRL**          | 0x30 | 0         | SyncRequest  | DALI总线电源控制           ||
+| **DAA_BPS_STAUS**         | 0x31 | 0         | SyncRequest  | DALI总线电源状态获取       ||
+| **DAA_CG_DISC**           | 0x32 | 0         | AsyncRequest | DALI控制装置设备搜索       ||
+| **DAA_CG_DISC_IND**       | 0xB2 | 1         | AsyncReport  | DALI控制装置设备搜索指示   ||
+| **DAA_CG_ADDRESSING**     | 0x33 | 0         | AsyncRequest | DALI控制装置地址分配       ||
+| **DAA_CG_ADDRESSING_IND** | 0xB3 | 1         | AsyncReport  | DALI控制装置地址分配指示   ||
+| **DAA_CG_CTRL**           | 0x34 | 0         | AsyncRequest | DALI控制装置控制           ||
+| **DAA_CG_CFG**            | 0x35 | 0         | AsyncRequest | DALI控制装置配置           ||
+| **DAA_CG_QUERY**          | 0x36 | 0         | AsyncRequest | DALI控制装置查询           ||
+| **DAA_CG_MB_READ**        | 0x37 | 0         | AsyncRequest | DALI控制装置MemoryBank读取 ||
+| **DAA_CG_MB_WRITE**       | 0x38 | 0         | AsyncRequest | DALI控制装置MemoryBank写入 ||
+| **DAA_CG_APP_CTRL**       | 0x39 | 0       | AsyncRequest | DALI控制装置扩展控制       ||
+| **DAA_CG_APP_CFG**        | 0x3A | 0         | AsyncRequest | DALI控制装置扩展配置       ||
+| **DAA_CG_APP_QUERY**      | 0x3B | 0         | AsyncRequest | DALI控制装置扩展查询       ||
+
+
 
 ### 系统管理接口
 
 模块系统管理接口（System Management Interface）命令包括：
 
-| Direction | FrameType    | 名称              | CmdId | 描述             | 响应                       |
-| --------- | ------------ | ----------------- | ----- | ---------------- | -------------------------- |
-| 0         | SyncRequest  | **SYS_RESET_REQ** | 0x00  | 请求模块复位     | DEFAULT_RSP，SYS_RESET_IND |
-| 1         | AsyncReport  | **SYS_RESET_IND** | 0x01  | 模块复位指示     | 无                         |
-| 0         | SyncRequest  | **SYS_VERSION**   | 0x02  | 获取模块版本信息 | SYS_VERSION_RSP            |
-| 0         | SyncRequest  | **SYS_READ_CFG**  | 0x03  | 读取模块配置数据 | SYS_READ_CFG_RSP           |
-| 0         | SyncRequest  | **SYS_WRITE_CFG** | 0x04  | 写入模块配置数据 | SYS_WRITE_CFG_RSP          |
-| 0         | SyncRequest  |                   | 0x05  |                  |                            |
-| 1         | SyncResponse | SYS_VERSION_RSP   | 0x02  |                  |                            |
 
 #### 系统复位
 
+##### SYS_RESET_REQ
 
+
+
+##### SYS_RESET_IND
 
 #### 系统版本和信息查询
 
@@ -266,18 +334,7 @@ Status | CfgId | CfgLength | CfgValue
 ### DALI 通道管理接口
 DALI 通道管理接口（DALI Channel Management Interface）命令包括：
 
-| Direction | FrameType    | 名称                        | CmdId | 描述                                 | 响应                    |
-| --------- | ------------ | --------------------------- | ----- | ------------------------------------ | ----------------------- |
-| 0         | SyncRequest  | **DACM_INFO**               | 0x00  | 获取DALI信息                         | DACM_INFO_RSP           |
-| 0         | SyncRequest  | **DACM_START**              | 0x10  | 开启DALI通道                         | DEFAULT_RSP             |
-| 0         | SyncRequest  | **DACM_STOP**               | 0x11  | 关闭DALI通道                         | DEFAULT_RSP             |
-| 0         | SyncRequest  | **DACM_STATUS**             | 0x12  | 获取DALI通道状态                     | DACM_STATUS_RSP         |
-| 0         | SyncRequest  | **DACM_CONTACT_ON**         | 0x13  | 打开DALI通道对应的回路干接点信号     | DEFAULT_RSP             |
-| 0         | SyncRequest  | **DACM_CONTACT_OFF**        | 0x14  | 关闭DALI通道对应的回路干接点信号     | DEFAULT_RSP             |
-| 0         | SyncRequest  | **DACM_CONTACT_STATUS**     | 0x15  | 获取DALI通道对应的回路干接点信号状态 | DACM_CONTACT_STATUS_RSP |
-| 1         | SyncResponse | **DACM_INFO_RSP**           | 0x00  | DALI信息响应                         | 无                      |
-| 1         | SyncResponse | **DACM_STATUS_RSP**         | 0x12  | DALI通道状态响应                     | 无                      |
-| 1         | SyncResponse | **DACM_CONTACT_STATUS_RSP** | 0x15  | DALI通道对应的回路干接点信号状态响应 | 无                      |
+
 
 #### DALI 通道基本管理
 
@@ -309,7 +366,7 @@ Data 内容定义如下：
 
 
 
-回复DEFAULT_RSP。
+回复AckNack。
 
 ##### DACM_STOP
 
@@ -323,7 +380,7 @@ Data 内容定义如下：
 
 
 
-回复DEFAULT_RSP。
+回复AckNack。
 
 #### DALI 通道状态获取
 
@@ -362,21 +419,10 @@ DALI 透传接口适用于主机自行实现DALI应用层管理，支持在模�
 
 DALI 透传接口（DALI Transparent Transmission Interface）命令包括：
 
-| Direction | FrameType    | 名称               | CmdId | 描述             | 响应                       |
-| --------- | ------------ | ------------------ | ----- | ---------------- | -------------------------- |
-| 0         | AsyncRequest | **DATT_SEND**      | 0x00  | 发送DALI总线数据 | DEFAULT_RSP，DATT_RECV_IND |
-| 0         | AsyncRequest | **DATT_SEND8**     | 0x01  | 发送8bit数据     | DEFAULT_RSP，DATT_RECV_IND |
-| 0         | AsyncRequest | **DATT_SEND16**    | 0x02  | 发送16bit数据    | DEFAULT_RSP，DATT_RECV_IND |
-| 0         | AsyncRequest | **DATT_SEND24**    | 0x03  | 发送24bit数据    | DEFAULT_RSP，DATT_RECV_IND |
-| 0         | AsyncRequest | **DATT_SEND32**    | 0x04  | 发送32bit数据    | DEFAULT_RSP，DATT_RECV_IND |
-| 0         | Poll         | **DATT_RECV_POLL** | 0x10  | 查询接收数据     | DATT_RECV_IND              |
-| 1         | AsyncReport  | **DATT_RECV_IND**  | 0x10  | DALI总线接收指示 | 无                         |
-| 1         | AsyncReport  | **DACM_EVENT_IND** | 0x11  | DALI总线事件汇报 | 无                         |
-
 透传命令的使用流程如下：
 
 * 主机发送DATT_SENDxxx命令；
-* 模块接收后立刻回复DEFAULT_RSP确认；
+* 模块接收后立刻回复AckNack确认；
 * 如果MONITOR_ENABLE开启同时ECHO开启，模块在每次DALI数据传输后向主机发送DATT_RECV_IND告知接收到的总线数据帧（自身发送的前向帧）；
 * 如果NO_WAIT_REPLY没有开启，模块最后等待DALI总线后向帧，并向主机发送DATT_RECV_IND指示接收情况。
 
@@ -612,7 +658,7 @@ Data定义为：
 
  模块依次返回：
 
-1. SyncResponse：DEFAULT_RSP（默认应答帧），表示已正确接收并开始执行命令；
+1. SyncResponse：AckNack（默认应答帧），表示已正确接收并开始执行命令；
 2. AsyncReport：DATT_RECV_IND（已发送16bit数据指示帧），汇报发送状态。
 
 3. AsyncReport：DATT_RECV_IND，指示无需DALI总线响应数据。
@@ -635,7 +681,7 @@ Data定义为：
 
  模块依次返回：
 
-1. SyncResponse：DEFAULT_RSP，表示已正确接收并开始执行命令；
+1. SyncResponse：AckNack，表示已正确接收并开始执行命令；
 2. AsyncReport：DATT_RECV_IND，汇报发送状态。
 3. AsyncReport：DATT_RECV_IND，指示总线上接收到的响应帧（正常情况下为8 bit 后向帧数据）或DALI总线在标准允许的时间内未接收到响应帧。
 
@@ -657,7 +703,7 @@ Data定义为：
 
  模块依次返回：
 
-1. SyncResponse：DEFAULT_RSP，表示已正确接收并开始执行命令。
+1. SyncResponse：AckNack，表示已正确接收并开始执行命令。
 2. AsyncReport：DATT_RECV_IND，汇报已发送“DTR0”（AdditionData0）命令。
 3. AsyncReport：DATT_RECV_IND，汇报已发送第1次“SET POWER ON LEVEL (DTR0)”命令。
 4. AsyncReport：DATT_RECV_IND，汇报已发送第2次“SET POWER ON LEVEL (DTR0)”命令。
@@ -692,7 +738,7 @@ DALI 102中向控制装置的指定MemoryBank的位置写入数据时需要分�
 
  模块依次返回：
 
-1. SyncResponse：DEFAULT_RSP，表示已正确接收并开始执行命令。
+1. SyncResponse：AckNack，表示已正确接收并开始执行命令。
 2. AsyncReport：DATT_RECV_IND，汇报已发送“DTR0”（AdditionData0）命令。
 3. AsyncReport：DATT_RECV_IND，汇报已发送第1次“ENABLE WRITE MEMORY”命令。
 4. AsyncReport：DATT_RECV_IND，汇报已发送第2次“ENABLE WRITE MEMORY”命令。
@@ -712,7 +758,7 @@ DALI 102中向控制装置的指定MemoryBank的位置写入数据时需要分�
 
  模块依次返回：
 
-1. SyncResponse：DEFAULT_RSP，表示已正确接收并开始执行命令。
+1. SyncResponse：AckNack，表示已正确接收并开始执行命令。
 2. AsyncReport：DATT_RECV_IND，汇报已发送“DTR1（data）”命令。
 3. AsyncReport：DATT_RECV_IND，指示无需总线响应。
 
@@ -730,7 +776,7 @@ DALI 102中向控制装置的指定MemoryBank的位置写入数据时需要分�
 
  模块依次返回：
 
-1. SyncResponse：DEFAULT_RSP，表示已正确接收并开始执行命令。
+1. SyncResponse：AckNack，表示已正确接收并开始执行命令。
 2. AsyncReport：DATT_RECV_IND，汇报已发送“WRITE MEMORY LOCATION(DTR1,DTR0, data)”命令。
 3. AsyncReport：DATT_RECV_IND，指示无需总线响应。
 
@@ -760,7 +806,7 @@ DALI 102标准中读Memory Bank数据分为以下几个步骤：
 
  模块依次返回：
 
-1. SyncResponse：DEFAULT_RSP，表示已正确接收并开始执行命令。
+1. SyncResponse：AckNack，表示已正确接收并开始执行命令。
 2. AsyncReport：DATT_RECV_IND，汇报已发送“DTR1”（AdditionData1）命令。
 3. AsyncReport：DATT_RECV_IND，汇报已发送“DTR0”（AdditionData0）命令。
 4. AsyncReport：DATT_RECV_IND，汇报已发送“READ MEMORY LOCATION(DTR1,DTR0) ”命令。
@@ -792,7 +838,7 @@ DALI 102标准中读Memory Bank数据分为以下几个步骤：
 
  模块依次返回：
 
-1. SyncResponse：DEFAULT_RSP，表示已正确接收并开始执行命令。
+1. SyncResponse：AckNack，表示已正确接收并开始执行命令。
 2. AsyncReport：DATT_RECV_IND，汇报已发送“DTR0”（AdditionData0）命令。
 3. AsyncReport：DATT_RECV_IND，汇报已发送“ENABLE DEVICE TYPE X”（AdditionData2）命令。
 4. AsyncReport：DATT_RECV_IND，汇报已发送第1次“STORE DTR AS FAST FADE TIME”命令。
@@ -806,24 +852,6 @@ DALI 102标准中读Memory Bank数据分为以下几个步骤：
 ### DALI 应用命令接口
 
 DALI 应用命令接口（DALI Application Command Interface）用来对底层DALI数据传输进行封装，为上层业务提供简单的调用接口。使用该接口可以减少主机和模块的交互次数从而降低主机对DALI底层传输指令的控制需求，也可以提高通信效率改善用户体验，当然和透传接口相比，无法做到对DALI总线数据传输细节的监控。这些接口命令包括：
-
-| Direction | FrameType    | 名称                      | CmdId | 描述                       |
-| --------- | ------------ | ------------------------- | ----- | -------------------------- |
-| 0         | SyncRequest  | **DAA_BPS_CTRL**          | 0x00  | DALI总线电源控制           |
-| 0         | SyncRequest  | **DAA_BPS_STAUS**         | 0x01  | DALI总线电源状态获取       |
-| 0         | AsyncRequest | **DAA_CG_DISC**           | 0x02  | DALI控制装置设备搜索       |
-| 1         | AsyncReport  | **DAA_CG_DISC_IND**       | 0x82  | DALI控制装置设备搜索指示   |
-| 0         | AsyncRequest | **DAA_CG_ADDRESSING**     | 0x03  | DALI控制装置地址分配       |
-| 1         | AsyncReport  | **DAA_CG_ADDRESSING_IND** | 0x83  | DALI控制装置地址分配指示   |
-| 0         | AsyncRequest | **DAA_CG_CTRL**           | 0x10  | DALI控制装置控制           |
-| 0         | AsyncRequest | **DAA_CG_CFG**            | 0x11  | DALI控制装置配置           |
-| 0         | AsyncRequest | **DAA_CG_QUERY**          | 0x12  | DALI控制装置查询           |
-| 0         | AsyncRequest | **DAA_CG_MB_READ**        | 0x13  | DALI控制装置MemoryBank读取 |
-| 0         | AsyncRequest | **DAA_CG_MB_WRITE**       | 0x14  | DALI控制装置MemoryBank写入 |
-| 0         | AsyncRequest | **DAA_CG_APP_CTRL**       | 0x15  | DALI控制装置扩展控制       |
-| 0         | AsyncRequest | **DAA_CG_APP_CFG**        | 0x16  | DALI控制装置扩展配置       |
-| 0         | AsyncRequest | **DAA_CG_APP_QUERY**      | 0x17  | DALI控制装置扩展查询       |
-
 #### DALI 总线电源管理应用接口
 
 ##### DAA_BPS_CTRL
