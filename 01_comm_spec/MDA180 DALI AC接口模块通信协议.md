@@ -1,6 +1,6 @@
 # MDA180 DALI AC 接口模块通信协议
 
-版本：v0.4， 更新日期：2022-07-14
+版本：v0.8， 更新日期：2022-08-30
 
 2022(c) 南京美加杰智能科技有限公司 www.meijay.com
 
@@ -115,19 +115,17 @@ PDU的组成如下：
 
 #### FrameControl 字节
 
-|   Bit 7   |  bit 6:4  | bit 3:0  |
-| :-------: | :-------: | :------: |
-| Direction | FrameType | FrameSeq |
+|   Bit 7   |  bit 6:4  | bit 3:0 |
+| :-------: | :-------: | :-----: |
+| Direction | FrameType | TrackID |
 
 其中：
 
 - bit[7]：**Direction**， 方向。0：主机发送请求；1：模块发送响应或报告；
 - bit[6:4]：**FrameType**， 帧类型，取值0~7。
-- bit[3:0]：**FrameSeq**, 帧序列号，取值范围0~15。一般由主机指定，模块返回与之相关的响应帧应该使用相同的序列号以便主机追溯（**TrackSeq**?）， 通常应采取循环递增的策略。模块主动发起的传输该位由模块自行指定，通常默认为0。模块内部数据帧的接收缓冲区不会超过8帧，因此正常情况下主机应该在0~7范围内循环，当模块无法确定帧序列号或者模块主动发起数据帧传输时取值15。
+- bit[3:0]：**TrackID**, 追溯号，取值范围0~15。一般由主机指定， 通常应采取在1~15循环递增的策略，模块返回与请求帧相关的响应帧应使用相同的TrackID以便主机追溯。当模块无法确定TrackID或者模块主动发起数据帧传输时取值0。
 
 ### 帧类型列表
-
-TODO：同步和异步可以用Control中的一个bit：bWaitResponse表示。bWaitResponse更适合DALI相关的命令中指定，或者通过参数配置来设定全局选项。
 
 FrameType指示数据帧的类型。
 
@@ -234,10 +232,10 @@ PDU定义如下：
 | **SYS_RESET_IND**   | 0x80  | 1         | AsyncReport  | 模块复位指示     |                      |
 | **SYS_VERSION**     | 0x01  | 0         | SyncRequest  | 获取模块版本信息 | SYS_VERSION_RSP        |
 | **SYS_VERSION_RSP** | 0x81 | 1         | SyncResponse |                  |                        |
-| **SYS_READ_CFG**    | 0x02  | 0         | SyncRequest  | 读取模块配置数据 | SYS_READ_CFG_RSP       |
-| **SYS_READ_CFG_RSP** | 0x82 | 1 | SyncResponse | 模块配置读取响应 |  |
-| **SYS_WRITE_CFG**   | 0x03 | 0         | SyncRequest  | 写入模块配置数据 | SYS_WRITE_CFG_RSP      |
-| **SYS_WRITE_CFG_RSP** | 0x83 | 1 | SyncResponse | 模块配置写入响应 |  |
+| **SYS_CFG_READ** | 0x02  | 0         | SyncRequest  | 读取模块配置数据 | SYS_CFG_READ_RSP |
+| **SYS_CFG_READ_RSP** | 0x82 | 1 | SyncResponse | 模块配置读取响应 |  |
+| **SYS_CFG_WRITE** | 0x03 | 0         | SyncRequest  | 写入模块配置数据 | SYS_CFG_WRITE_RSP |
+| **SYS_CFG_WRITE_RSP** | 0x83 | 1 | SyncResponse | 模块配置写入响应 |  |
 | **DACM_INFO**               | 0x10 | 0         | SyncRequest  | 获取DALI信息                         | DACM_INFO_RSP           |
 | **DACM_INFO_RSP** | 0x90 | 1 | SyncResponse | DALI信息响应 |  |
 | **DACM_START**              | 0x11 | 0         | SyncRequest  | 开启DALI通道                         | AckNack                 |
@@ -254,7 +252,7 @@ PDU定义如下：
 | **DATT_SEND24**    | 0x23 | 0         | AsyncRequest | 发送24bit数据    | AckNack，DATT_RECV_IND |
 | **DATT_SEND32**    | 0x24 | 0         | AsyncRequest | 发送32bit数据    | AckNack，DATT_RECV_IND |
 | **DATT_RECV_POLL** | 0x29 | 0         | Poll         | 查询接收数据     | DATT_RECV_IND          |
-| **DATT_RECV_IND**  | 0xA9 | 1         | AsyncReport  | DALI总线接收指示 |                      |
+| **DATT_DATA_IND** | 0xA9 | 1         | AsyncReport  | DALI总线数据指示 |                      |
 | **DATT_EVENT_IND** | 0xAA | 1         | AsyncReport  | DALI总线事件汇报 |  |
 | **DAA_BPS_CTRL**          | 0x30 | 0         | SyncRequest  | DALI总线电源控制           ||
 | **DAA_BPS_STAUS**         | 0x31 | 0         | SyncRequest  | DALI总线电源状态获取       ||
@@ -419,22 +417,25 @@ DALI 透传接口适用于主机自行实现DALI应用层管理，支持在模�
 
 DALI 透传接口（DALI Transparent Transmission Interface）命令包括：
 
-透传命令的使用流程如下：
+* 主机发送至模块的命令：*DATT_SEND*, *DATT_SEND8*, *DATT_SEND16*, *DATT_SEND24*, *DATT_SEND32*
+* 模块发送至主机的命令：*DATT_DATA_IND*, *DATT_EVENT_IND*
 
-* 主机发送DATT_SENDxxx命令；
-* 模块接收后立刻回复AckNack确认；
-* 如果MONITOR_ENABLE开启同时ECHO开启，模块在每次DALI数据传输后向主机发送DATT_RECV_IND告知接收到的总线数据帧（自身发送的前向帧）；
-* 如果NO_WAIT_REPLY没有开启，模块最后等待DALI总线后向帧，并向主机发送DATT_RECV_IND指示接收情况。
+主机使用透传命令的流程如下：
 
-> **注意**：可以通过发送模块系统配置命令，禁用模块对自己发出的每个DALI数据帧时返回DATT_SENDxxx_CFM响应，而只使用模块在所有数据帧发送完成后回复的DATT_SENDxxx_CFM，这样可以减少中间的数据返回次数，对采用RS485通信的应用，提高了效率。但主机需要设置较长的超时等待以避免再等待多条DALI总线数据发送的过程中判断为超时。等待的时长根据最长时间估计，如同时自动设置DTR1、DTR0、DeviceType和双次发送，模块实际需要向DALI总线发送5次16-bit数据帧，加上帧间等待（尚未考虑多主机应用的冲突重试），需要30ms*5 = 150ms。
+1. 主机发送*DATT_SENDxxx*命令；
+2. 模块接收后立刻回复*AckNack*确认收到命令数据；
+3. 模块解析发送请求并根据需要将发送请求分解为一个或多个需要向总线发送的数据帧并添加到数据帧发送缓冲区；
+4. 模块从数据帧发送缓冲区获取数据帧，开始发送，在单个数据帧传输完成后向主机发送*DATT_DATA_IND*，指示发送情况；
+5. 如果当前数据帧需要等待DALI总线上的设备回应，模块则在响应时间窗口内尝试等待接收总线数据。如果接收到数据或没有检测到响应则向主机发送*DATT_DATA_IND*指示响应接收情况；
+6. 检查数据帧发送缓冲区是否为空，如果非空则跳转到第4步继续执行；
+7. 如果在发送过程或等待响应过程出现总线的异常和恢复，模块均向主机发送*DATT_EVENT_IND*指示总线事件。
 
-TODO： 需要进一步区分DATT_SENDxxx_CFM、DATT_SENDxxx_IND和DATT_RECV_IND的区别：
+> **注意**：可以通过发送模块系统配置命令，禁用模块对自己发出的每个DALI数据帧时返回*DATT_DATA_IND*响应，这样可以减少中间的数据返回次数，对采用RS485通信的应用，提高了效率。但主机需要设置较长的超时等待以避免再等待多条DALI总线数据发送的过程中判断为超时。等待的时长根据最长时间估计，如同时自动设置DTR1、DTR0、DeviceType和双次发送的*DATT_SEND16*请求，模块实际需要向DALI总线发送5次16-bit数据帧，加上帧间等待（尚未考虑多主机应用的冲突重试），需要30ms*5 = 150ms。
+>
+> * 如果MONITOR_ENABLE开启，模块在接收到总线上的其他数据时，会向主机发送DATT_DATA_IND指示。
+> * 如果ECHO开启，模块在每次向DALI总线发送数据后，会向主机发送DATT_DATA_IND指示。
 
-*  DATT_SENDxxx_CFM应该用于确认发送是否成功，模块需要自行监测所有DA_TX发出的数据帧和DA_RX接收的数据帧是否吻合来判断发送的对错，在所有需要发送的数据帧均发送正确后返回异步的DATT_SENDxxx_CFM， 而DATT_SENDxxx_CFM主要通过Status字段来返回发送的状态。
-* DATT_SENDxxx_IND则用于反馈自身发送的单次数据帧的具体情况，包括总线上检测到的实际数据，以及总线空闲时间。可用来做总线数据分析，一定程度上和DATT_RECV_IND并没有大的不同，只是DATT_RECV_IND在开启DALI通道的总线监控（MonitorEnable）后，接收的数据可能和主机的请求没有关系，PDU中的Seq字段为固定值。
-* 因此还需要MonitorEnable标志来决定是否返回接收到的自身发送的总线数据帧（以DATT_RECV_IND或DATT_SENDxxx_IND？？？）， 参考DALI_SCI2。
-* 也需要增加WaitReply标志来决定是否要等待DALI anwser，参考DALI_SCI2。
-* 
+
 
 #### DALI 通用透传命令
 
@@ -459,41 +460,50 @@ Data定义为：
   * Bit [7:4]：RepeatTimeInterval，两次发送的时间间隔，取值范围0~15。0：默认；1~15： 单位x10ms。
   * Bit 3： Send-Twice，发送两次。
   * Bit[2:0]：Priority，传输优先级，取值范围0~7。
-* **BusDataBits**：要发送的数据位数。0：仅发送起始位；1~64：1~64位，其中8/16/24/32可以用来发送DALI标准的8/16/24/32位数据帧；65~255：无效。
+* **BusDataBits**：要发送的数据位数。0：仅发送起始位；1~32：1~32位，其中8/16/24/32可以用来发送DALI标准的8/16/24/32位数据帧；33~64：不使用；65~255：无效。
 * **BusData**：DALI总线上要发送的数据。高字节在前，低字节在后，根据BusDataBits从低位到高位依次发送。
 
-##### DATT_RECV_IND
+##### DATT_DATA_IND
+
+模块发出的指示总线上已经传输或接收的数据信息。
+
+**TODO**： 合并DATT_DATA_IND 和 DATT_EVENT_IND， 通过Status来指示数据或事件类型。
+
+
 
 Data定义为
 
-| 1 byte  | 1 byte | 1 byte      | 0..N byte     |     1 byte      |     1 byte     |
-| :-----: | :----: | ----------- | ------------- | :-------------: | :------------: |
-| Channel | Status | BusDataBits | BusData[0..N] | BusIdleTimeHigh | BusIdleTimeLow |
+| 1 byte  |     1 byte      |     1 byte     | 1 byte | 1 byte   | 0..N byte  |
+| :-----: | :-------------: | :------------: | :----: | -------- | ---------- |
+| Channel | BusIdleTimeHigh | BusIdleTimeLow | Status | DataBits | Data[0..N] |
 
 其中，
 
 * **Channel**：DALI 通道，1字节。0：所有通道；1~4：通道编号；其他：保留未用。
-* **Status**：接收状态， 1字节。含义参考[DATT Status](#DATT Status)说明。
-* **BusDataBits**：接收的数据位数， 仅当Status为DATT_Success时有效。0：无数据接收；1~64：1~64位，其中8/16/24/32表示DALI标准的8/16/24/32位数据帧；65~255：无效。
-* **BusData**：DALI总线上接收到的数据， 0~N字节。高字节在前，低字节在后，根据BusDataBits从低位到高位依次接收。N = (BusDataBits + 7) / 8 取整。
 * **BusIdleTimeHigh/BusIdleTimeLow**：  BusIdleTime的高低字节，参考[BusIdleTime](#BusIdleTime)。
+* **Status**：状态， 1字节。
+  * Bit[7:6]：**IndicationType**，表示数据指示的类型。0：DATA_SENT，模块向DALI总线已发出的数据；1：ANSWER_RECEIVED，从总线接收到的对应于模块发送数据的响应数据；2：DATA_RECEIVED，从DALI总线接收的其他数据；3：保留未用。
+  * Bit[5:0]：**DataStatus**，已传输或接收的数据状态，指示数据是否合法及错误信息。含义参考[DATT Status](#DATT Status)说明
 
-###### DATT Status
-
-| 名称                     | 数值 | 含义           |
-| ------------------------ | ---- | -------------- |
-| DATT_Success             | 0    | 成功           |
-| DATT_NoReply             | 1    | 无响应         |
-| DATT_BusFailure          | 2    | 总线错误       |
-| DATT_FramingError        | 3    | 数据帧时序错误 |
-| DATT_InvalidParameter    | 4    | 非法参数       |
-| DATT_TransmissionTimeout | 6    | 传输超时       |
+* **DataBits**：已传输或接收的数据位数, 1字节。已传输或接收的数据位数， 仅当Status为DATT_Success时有效。0：无数据接收；1~64：1~64位，其中8/16/24/32表示DALI标准的8/16/24/32位数据帧；65~255：无效。
+* **Data**：DALI总线上接收到的数据， 0~N字节。高字节在前，低字节在后，根据DataBits从低位到高位依次接收。N = (DataBits + 7) / 8 取整。
 
 ###### BusIdleTime
 
 BusIdleTime表示DALI总线发送或接收一个数据帧之前的空闲时间，取值范围0~0xFFFF。其中0~0xFFFE：表示时间长度为该数值 x 83.3us (即0.2Te，Te表示DALI标准中的1一个half-bit时间，约为416.7us )；0xFFFF：表示时间长度超过0xFFFE表示的值（约为5161ms，即5.16s）
 
-##### DACM_EVENT_IND
+###### DATT  Status
+
+| 名称                     | 数值 | 含义                                                         |
+| ------------------------ | ---- | ------------------------------------------------------------ |
+| DATT_Success             | 0    | 成功                                                         |
+| DATT_NoReply             | 1    | 无响应                                                       |
+| DATT_BusFailure          | 2    | 总线错误（可以再区分是短时间的总线错误BusError还是长时间的总线故障SystemFailure） |
+| DATT_FramingError        | 3    | 数据帧时序错误（可以区分是发送冲突导致的帧错误还是接收的帧错误） |
+| DATT_InvalidParameter    | 4    | 非法参数                                                     |
+| DATT_TransmissionTimeout | 6    | 传输超时                                                     |
+
+##### DATT_EVENT_IND
 
 当总线状态发生变化时，模块发送该数据帧向主机汇报。
 
@@ -510,12 +520,13 @@ Data定义为
 
 ###### DATT EventType
 
-| 名称                   | 数值 | 含义             |
-| ---------------------- | ---- | ---------------- |
-| DATT_EVENT_NONE        | 0    | 无有效事件       |
-| DATT_EVENT_BUS_SHORT   | 2    | DALI总线无电压   |
-| DATT_EVENT_FRAMING_ERR | 3    | 接收数据帧错误   |
-| DATT_EVENT_BUS_OK      | 4    | DALI总线恢复正常 |
+| 名称                   | 数值 | 含义                               |
+| ---------------------- | ---- | ---------------------------------- |
+| DATT_EVENT_NONE        | 0    | 无有效事件                         |
+| DATT_EVENT_SYS_FAILURE | 1    | DALI总线掉电  (电压低> 500ms)      |
+| DATT_EVENT_BUS_ERROR   | 2    | DALI总线错误（电压低 42.5ms~500ms) |
+| DATT_EVENT_FRAMING_ERR | 3    | 接收数据帧错误                     |
+| DATT_EVENT_BUS_OK      | 4    | DALI总线恢复正常（电压高 > 2ms )   |
 
 
 
@@ -562,14 +573,14 @@ Data定义为：
 
 控制标志指示透传命令的附加特性。
 
-| bit 7         | bit 6                  | bit 5   | bit 4   | bit 3      | bit [2:0] |
-| ------------- | ---------------------- | ------- | ------- | ---------- | --------- |
-| SetDeviceType | StoreActualLevelInDTR0 | SetDTR1 | SetDTR0 | Send-Twice | Priority  |
+| bit 7           | bit 6         | bit 5   | bit 4   | bit 3      | bit [2:0] |
+| --------------- | ------------- | ------- | ------- | ---------- | --------- |
+| WaitForResponse | SetDeviceType | SetDTR1 | SetDTR0 | Send-Twice | Priority  |
 
 数据位定义如下：
 
-- bit 7：**SetDeviceType**， 设置DeviceType。0：不需要设置Device Type；1：自动发送Enable Device Type x命令，Device Type数值在数据帧的AdditionData2，通常用于Device Type相关的扩展命令。
-- bit 6：**StoreActualLevelInDTR0**，自动发送DALI 102标准中的StoreActualLevelInDTR0命令，以便在正常命令发送之前将当前的亮度等级设置到DTR0中，一般用于配置Scene、PowerOnLevel和SystemFailureLevel等来减少一次主机交互过程。
+- bit 7：**WaitForResponse**，等待响应数据帧。0：不等待响应；1：等待响应数据。
+- bit 6：**SetDeviceType**， 设置DeviceType。0：不需要设置Device Type；1：自动发送Enable Device Type x命令，Device Type数值在数据帧的AdditionData2，通常用于Device Type相关的扩展命令。
 - bit 5：**SetDTR1**，设置DTR1。0： 不需要额外发送DTR1；1：自动发送DTR1命令，DTR1的数值在数据帧的AdditionData1中，通常用于需要同时指定DTR0和DTR1的命令。
 - bit 4：**SetDTR0**，设置DTR0。0： 不需要额外发送DTR0；1：自动发送DTR0命令，DTR0的数值在数据帧的AdditionData0中，通常用于STORE_XXX配置命令。
 - bit 3：**Send-Twice**，两次发送。0： 单次发送；1：发送2次命令（通常用于DALI命令中的Send-Twice命令）
@@ -600,13 +611,13 @@ Data定义为：
 
 **控制标志 Control**
 
-| bit 7 | bit 6   | bit 5   | bit 4   | bit 3      | bit [2:0] |
-| ----- | ------- | ------- | ------- | ---------- | --------- |
-| 保留  | SetDTR2 | SetDTR1 | SetDTR0 | Send-Twice | Priority  |
+| bit 7           | bit 6   | bit 5   | bit 4   | bit 3      | bit [2:0] |
+| --------------- | ------- | ------- | ------- | ---------- | --------- |
+| WaitForResponse | SetDTR2 | SetDTR1 | SetDTR0 | Send-Twice | Priority  |
 
 数据位定义如下：
 
-- bit 7：保留未用，默认为0。
+- bit 7：**WaitForResponse**，等待响应数据帧。0：不等待响应；1：等待响应数据。
 - bit 6：**SetDTR2**，设置DTR2。0： 不需要额外发送DTR2；1：自动发送DTR2命令，DTR2的数值在数据帧的AdditionData2中，通常用于需要同时指定DTR0、DTR1、DTR2或其中2个的命令。
 - bit 5：**SetDTR1**，设置DTR1。0： 不需要额外发送DTR1；1：自动发送DTR1命令，DTR1的数值在数据帧的AdditionData1中，通常用于需要同时指定DTR0和DTR1的命令。
 - bit 4：**SetDTR0**，设置DTR0。0： 不需要额外发送DTR0；1：自动发送DTR0命令，DTR0的数值在数据帧的AdditionData0中，通常用于STORE_XXX配置命令。
@@ -621,15 +632,29 @@ Data定义为：
 
 Data定义为：
 
-| 1 byte  | 1 byte  | 1 byte  | 1 byte  | 1 byte  |
-| ------- | ------- | ------- | ------- | ------- |
-| Channel | Address | Opcode1 | Opcode2 | Opcode3 |
+| 1 byte  | 1 byte  | 1 byte  | 1 byte  | 1 byte  | 1 byte  |
+| ------- | ------- | ------- | ------- | ------- | ------- |
+| Channel | Control | Address | Opcode1 | Opcode2 | Opcode3 |
 
 其中：
 
 * **Channel**：DALI 通道，1字节。0：所有通道（默认）；1~4：通道编号；其他：保留未用。
+* **Control**： 控制标志， 1字节。
 * **Address**：DALI 105 地址字节， 1字节。
 * **Opcode1/2/3**：DALI 105 操作码， 3字节。
+
+**控制标志 Control**
+
+| bit 7           | bit 6    | bit 5    | bit 4    | bit 3      | bit [2:0] |
+| --------------- | -------- | -------- | -------- | ---------- | --------- |
+| WaitForResponse | 保留未用 | 保留未用 | 保留未用 | Send-Twice | Priority  |
+
+数据位定义如下：
+
+- bit 7：**WaitForResponse**，等待响应数据帧。0：不等待响应；1：等待响应数据。
+- bit [6:4]：保留未用。
+- bit 3：**Send-Twice**，两次发送。0： 单次发送；1：发送2次命令（通常用于DALI命令中的Send-Twice命令）
+- bit [2:0]：**Priority**, 传输优先级，默认为0，仅用于支持multi-master的应用中。0： 标准；1~5： 对应DALI标准中的Priority 0~4。6~7：保留。
 
 #### DALI 透传命令应用示例
 
@@ -885,17 +910,17 @@ DAA_CG_DISC 命令PDU的data部分内容为：
 
 **DiscoveryOptions**
 
-|   bit 7:4   | bit 3                  | bit 2        | bit 1                    | bit 0           |
-| :---------: | ---------------------- | ------------ | ------------------------ | --------------- |
-| ExpiredTime | RequireQueryDeviceType | ForceRestart | NoIntermediateIndication | UnaddressedOnly |
+|      | bit 7:5  | bit 4   | bit 3        | bit 2    | bit 1:0 |
+| ---- | :------: | ------- | ------------ | -------- | ------- |
+|      | Reserved | QueryDT | ForceRestart | NoIntInd | Mode    |
 
 其中，
 
-* ExpiredTime：取值0~15，超时时间。单位：分钟。0表示没有超时限制。
-* RequireQueryDeviceType：需要查询设备类型。0：不需要，1：需要，此处查询仅返回单个DeviceType类型或者指示存在多个设备类型，多个设备类型仍需要主机发起独立查询请求来获取控制装置支持的所有设备类型列表。
+* Reserved：保留未用。
+* QueryDT：Query Device Type, 需要查询设备类型。0：不需要，1：需要，此处查询仅返回单个DeviceType类型或者指示存在多个设备类型，多个设备类型仍需要主机发起独立查询请求来获取控制装置支持的所有设备类型列表。
 * ForceRestart：如果有未完成的搜索，是否强制重启搜索。0：否，等待当前搜索完成；1：是，强制结束当前未完成的搜索，重新启动搜索。
-* NoIntermediateIndication：不需要搜索过程中汇报进度。0：不汇报，直到搜索完成后才汇报搜索结果；1：搜索过程中汇报搜索状态变化。
-* UnaddressedOnly：只搜索是否存在未分配地址的设备。0：否，搜索所有设备，1：是，仅搜索未分配地址的设备。
+* NoIntInd：No Intermediate Indication, 不需要搜索过程中汇报进度。0：不汇报，直到搜索完成后才汇报搜索结果；1：搜索过程中汇报搜索状态变化。
+* Mode：搜索模式，取值0~3。0：搜索已分配地址的设备；1：搜索是否存在未分配地址的设备；2：搜索存在重复地址的设备；3：搜索所有设备返回已分配地址的设备以及是否存在未分配地址的设备。
 
 ###### DAA_CG_DISC_IND
 
@@ -914,7 +939,7 @@ DAA_CG_DISC_IND 数据帧的PDU data定义如下：
 其中，
 
 * Channel：DALI 通道编号。
-* Status：搜索状态指示。含义参考后文的DiscoveryStatus说明。
+* DiscoveryStatus：搜索状态指示。含义参考后文的DiscoveryStatus说明。
 * DiscoveredDeviceList：搜索到的设备列表，具体格式参考DiscoveredDeviceList说明。
 
 **DiscoveryStatus**
@@ -927,7 +952,7 @@ DAA_CG_DISC_IND 数据帧的PDU data定义如下：
 
 * DeviceTypeQueried：包含DeviceType。
 * UnaddressedDeviceFound：发现未分配地址的设备。
-* State：搜索状态，取值0~15。0： 正常已完成；1：进行中；2：超时结束；3：异常结束；4~15：保留 。
+* DiscoveryState：搜索状态，取值0~15。0： 正常已完成；1：进行中；2：超时结束；3：异常结束；4~15：保留 。
 
 **DiscoveredDeviceList**
 
@@ -952,6 +977,33 @@ DAA_CG_DISC_IND 数据帧的PDU data定义如下：
 * DeviceType：设备类型。0~223： 设备类型， 目前DALI标准中实际定义启用的设备类型仅为一部分；224~253：保留未用；254：没有支持任何扩展设备类型， 或者当DiscoveryStatus中的DeviceTypeQueried为0时；255：支持多个扩展设备类型。
 
 ##### DAA_CG_ADDRESSING
+
+DAA_CG_ADDRESSING 命令PDU的data部分内容为：
+
+| 1 byte  |      1 byte       |
+| :-----: | :---------------: |
+| Channel | AddressingOptions |
+
+其中，
+
+* Channel：DALI 通道编号。
+* AddressingOptions：地址分配选项。
+
+**AddressingOptions**
+
+| bit 7    | bit 6    | bit 5 |     bit 4     | bit 3   | bit 2        | bit 1    | bit 0      |
+| -------- | -------- | ----- | :-----------: | ------- | ------------ | -------- | ---------- |
+| Reserved | Reserved | VisFb | IgnoreNotRspd | QueryDT | ForceRestart | NoIntInd | UnaddrOnly |
+
+其中，
+
+* Reserved：保留未用。
+* VisFb：Visible Feedback分配过程是否需要视觉反馈。0：无反馈；1：分配开始先关闭待分配的设备，在分配过程中依次点亮获得地址的设备。
+* IgnoreNotRspd: Ignore Not Responding，忽略不响应的设备。0：如果有不响应的设备则停止分配；1：忽略不响应的设备。 
+* QueryDT：Query Device Type，需要查询设备类型。0：不需要，1：需要，此处查询仅返回单个DeviceType类型或者指示存在多个设备类型，多个设备类型仍需要主机发起独立查询请求来获取控制装置支持的所有设备类型列表。
+* ForceRestart：如果有未完成的分配，是否强制重启分配。0：否，等待当前分配完成；1：是，强制结束当前未完成的分配，重新启动分配。
+* NoIntInd：No Intermediate Indication，不需要分配过程中汇报进度。0：分配过程中汇报状态变化；1：不汇报，直到分配完成后才汇报分配结果。
+* UnaddrOnly：Unaddressed Only,只对未分配地址执行地址分配。0：已有地址的设备将会先被删除地址，然后对所有设备执行地址重新分配，适用于全新安装；1：仅对未分配地址的设备执行地址分配，用于系统扩展。
 
 ##### DAA_CG_CTRL
 
