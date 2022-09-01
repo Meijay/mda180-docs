@@ -1,6 +1,6 @@
 # MDA180 DALI AC 接口模块通信协议
 
-版本：v0.8， 更新日期：2022-08-30
+版本：v0.9， 更新日期：2022-08-30
 
 2022(c) 南京美加杰智能科技有限公司 www.meijay.com
 
@@ -246,12 +246,12 @@ PDU定义如下：
 | **DACM_CONTACT_OFF**        | 0x15 | 0         | SyncRequest  | 关闭DALI通道对应的回路干接点信号     | AckNack                 |
 | **DACM_CONTACT_STATUS**     | 0x16 | 0         | SyncRequest  | 获取DALI通道对应的回路干接点信号状态 | DACM_CONTACT_STATUS_RSP |
 | **DACM_CONTACT_STATUS_RSP** | 0x96 | 1         | SyncResponse | DALI通道对应的回路干接点信号状态响应 |                       |
-| **DATT_SEND**      | 0x20 | 0         | AsyncRequest | 发送DALI总线数据 | AckNack，DATT_RECV_IND |
-| **DATT_SEND8**     | 0x21 | 0         | AsyncRequest | 发送8bit数据     | AckNack，DATT_RECV_IND |
-| **DATT_SEND16**    | 0x22 | 0         | AsyncRequest | 发送16bit数据    | AckNack，DATT_RECV_IND |
-| **DATT_SEND24**    | 0x23 | 0         | AsyncRequest | 发送24bit数据    | AckNack，DATT_RECV_IND |
-| **DATT_SEND32**    | 0x24 | 0         | AsyncRequest | 发送32bit数据    | AckNack，DATT_RECV_IND |
-| **DATT_RECV_POLL** | 0x29 | 0         | Poll         | 查询接收数据     | DATT_RECV_IND          |
+| **DATT_SEND**      | 0x20 | 0         | AsyncRequest | 发送DALI总线数据 | AckNack，DATT_DATA_IND |
+| **DATT_SEND8**     | 0x21 | 0         | AsyncRequest | 发送8bit数据     | AckNack，DATT_DATA_IND |
+| **DATT_SEND16**    | 0x22 | 0         | AsyncRequest | 发送16bit数据    | AckNack，DATT_DATA_IND |
+| **DATT_SEND24**    | 0x23 | 0         | AsyncRequest | 发送24bit数据    | AckNack，DATT_DATA_IND |
+| **DATT_SEND32**    | 0x24 | 0         | AsyncRequest | 发送32bit数据    | AckNack，DATT_DATA_IND |
+| **DATT_RECV_POLL** | 0x29 | 0         | Poll         | 查询接收数据     | DATT_DATA_IND          |
 | **DATT_DATA_IND** | 0xA9 | 1         | AsyncReport  | DALI总线数据指示 |                      |
 | **DATT_EVENT_IND** | 0xAA | 1         | AsyncReport  | DALI总线事件汇报 |  |
 | **DAA_BPS_CTRL**          | 0x30 | 0         | SyncRequest  | DALI总线电源控制           ||
@@ -684,9 +684,9 @@ Data定义为：
  模块依次返回：
 
 1. SyncResponse：AckNack（默认应答帧），表示已正确接收并开始执行命令；
-2. AsyncReport：DATT_RECV_IND（已发送16bit数据指示帧），汇报发送状态。
+2. AsyncReport：DATT_DATA_IND（已发送16bit数据指示帧），汇报发送状态。
 
-3. AsyncReport：DATT_RECV_IND，指示无需DALI总线响应数据。
+3. AsyncReport：DATT_DATA_IND，指示无需DALI总线响应数据。
 
 
 
@@ -707,8 +707,8 @@ Data定义为：
  模块依次返回：
 
 1. SyncResponse：AckNack，表示已正确接收并开始执行命令；
-2. AsyncReport：DATT_RECV_IND，汇报发送状态。
-3. AsyncReport：DATT_RECV_IND，指示总线上接收到的响应帧（正常情况下为8 bit 后向帧数据）或DALI总线在标准允许的时间内未接收到响应帧。
+2. AsyncReport：DATT_DATA_IND，汇报发送状态。
+3. AsyncReport：DATT_DATA_IND，指示总线上接收到的响应帧（正常情况下为8 bit 后向帧数据）或DALI总线在标准允许的时间内未接收到响应帧。
 
 
 
@@ -729,10 +729,10 @@ Data定义为：
  模块依次返回：
 
 1. SyncResponse：AckNack，表示已正确接收并开始执行命令。
-2. AsyncReport：DATT_RECV_IND，汇报已发送“DTR0”（AdditionData0）命令。
-3. AsyncReport：DATT_RECV_IND，汇报已发送第1次“SET POWER ON LEVEL (DTR0)”命令。
-4. AsyncReport：DATT_RECV_IND，汇报已发送第2次“SET POWER ON LEVEL (DTR0)”命令。
-5. AsyncReport：DATT_RECV_IND，指示无需总线响应。
+2. AsyncReport：DATT_DATA_IND，汇报已发送“DTR0”（AdditionData0）命令。
+3. AsyncReport：DATT_DATA_IND，汇报已发送第1次“SET POWER ON LEVEL (DTR0)”命令。
+4. AsyncReport：DATT_DATA_IND，汇报已发送第2次“SET POWER ON LEVEL (DTR0)”命令。
+5. AsyncReport：DATT_DATA_IND，指示无需总线响应。
 
 
 
@@ -764,10 +764,10 @@ DALI 102中向控制装置的指定MemoryBank的位置写入数据时需要分�
  模块依次返回：
 
 1. SyncResponse：AckNack，表示已正确接收并开始执行命令。
-2. AsyncReport：DATT_RECV_IND，汇报已发送“DTR0”（AdditionData0）命令。
-3. AsyncReport：DATT_RECV_IND，汇报已发送第1次“ENABLE WRITE MEMORY”命令。
-4. AsyncReport：DATT_RECV_IND，汇报已发送第2次“ENABLE WRITE MEMORY”命令。
-5. AsyncReport：DATT_RECV_IND，指示无需总线响应。
+2. AsyncReport：DATT_DATA_IND，汇报已发送“DTR0”（AdditionData0）命令。
+3. AsyncReport：DATT_DATA_IND，汇报已发送第1次“ENABLE WRITE MEMORY”命令。
+4. AsyncReport：DATT_DATA_IND，汇报已发送第2次“ENABLE WRITE MEMORY”命令。
+5. AsyncReport：DATT_DATA_IND，指示无需总线响应。
 
 （2）主机发送 AsyncRequest请求帧，向DALI总线发送“DTR1”命令设置MemoryBank序号为136，其中Data内容为：
 
@@ -784,8 +784,8 @@ DALI 102中向控制装置的指定MemoryBank的位置写入数据时需要分�
  模块依次返回：
 
 1. SyncResponse：AckNack，表示已正确接收并开始执行命令。
-2. AsyncReport：DATT_RECV_IND，汇报已发送“DTR1（data）”命令。
-3. AsyncReport：DATT_RECV_IND，指示无需总线响应。
+2. AsyncReport：DATT_DATA_IND，汇报已发送“DTR1（data）”命令。
+3. AsyncReport：DATT_DATA_IND，指示无需总线响应。
 
 （3）主机发送 AsyncRequest请求帧，“WRITE MEMORY LOCATION(DTR1,DTR0, 55) ”向Memory Bank的指定位置写入数据32，其中Data内容为：
 
@@ -802,8 +802,8 @@ DALI 102中向控制装置的指定MemoryBank的位置写入数据时需要分�
  模块依次返回：
 
 1. SyncResponse：AckNack，表示已正确接收并开始执行命令。
-2. AsyncReport：DATT_RECV_IND，汇报已发送“WRITE MEMORY LOCATION(DTR1,DTR0, data)”命令。
-3. AsyncReport：DATT_RECV_IND，指示无需总线响应。
+2. AsyncReport：DATT_DATA_IND，汇报已发送“WRITE MEMORY LOCATION(DTR1,DTR0, data)”命令。
+3. AsyncReport：DATT_DATA_IND，指示无需总线响应。
 
 
 
@@ -832,10 +832,10 @@ DALI 102标准中读Memory Bank数据分为以下几个步骤：
  模块依次返回：
 
 1. SyncResponse：AckNack，表示已正确接收并开始执行命令。
-2. AsyncReport：DATT_RECV_IND，汇报已发送“DTR1”（AdditionData1）命令。
-3. AsyncReport：DATT_RECV_IND，汇报已发送“DTR0”（AdditionData0）命令。
-4. AsyncReport：DATT_RECV_IND，汇报已发送“READ MEMORY LOCATION(DTR1,DTR0) ”命令。
-5. AsyncReport：DATT_RECV_IND，指示总线上接收到的响应帧（正常情况下为8 bit 后向帧数据）或DALI总线在标准允许的时间内未接收到响应帧。
+2. AsyncReport：DATT_DATA_IND，汇报已发送“DTR1”（AdditionData1）命令。
+3. AsyncReport：DATT_DATA_IND，汇报已发送“DTR0”（AdditionData0）命令。
+4. AsyncReport：DATT_DATA_IND，汇报已发送“READ MEMORY LOCATION(DTR1,DTR0) ”命令。
+5. AsyncReport：DATT_DATA_IND，指示总线上接收到的响应帧（正常情况下为8 bit 后向帧数据）或DALI总线在标准允许的时间内未接收到响应帧。
 
 
 
@@ -864,11 +864,11 @@ DALI 102标准中读Memory Bank数据分为以下几个步骤：
  模块依次返回：
 
 1. SyncResponse：AckNack，表示已正确接收并开始执行命令。
-2. AsyncReport：DATT_RECV_IND，汇报已发送“DTR0”（AdditionData0）命令。
-3. AsyncReport：DATT_RECV_IND，汇报已发送“ENABLE DEVICE TYPE X”（AdditionData2）命令。
-4. AsyncReport：DATT_RECV_IND，汇报已发送第1次“STORE DTR AS FAST FADE TIME”命令。
-5. AsyncReport：DATT_RECV_IND，汇报已发送第2次“STORE DTR AS FAST FADE TIME”命令。
-6. AsyncReport：DATT_RECV_IND，指示无需总线响应。
+2. AsyncReport：DATT_DATA_IND，汇报已发送“DTR0”（AdditionData0）命令。
+3. AsyncReport：DATT_DATA_IND，汇报已发送“ENABLE DEVICE TYPE X”（AdditionData2）命令。
+4. AsyncReport：DATT_DATA_IND，汇报已发送第1次“STORE DTR AS FAST FADE TIME”命令。
+5. AsyncReport：DATT_DATA_IND，汇报已发送第2次“STORE DTR AS FAST FADE TIME”命令。
+6. AsyncReport：DATT_DATA_IND，指示无需总线响应。
 
 ##### 103控制设备示例
 
@@ -976,7 +976,9 @@ DAA_CG_DISC_IND 数据帧的PDU data定义如下：
 * ShortAddress：0~63表示已分配地址的设备短地址；255（0xFF）表示存在未分配地址的设备。
 * DeviceType：设备类型。0~223： 设备类型， 目前DALI标准中实际定义启用的设备类型仅为一部分；224~253：保留未用；254：没有支持任何扩展设备类型， 或者当DiscoveryStatus中的DeviceTypeQueried为0时；255：支持多个扩展设备类型。
 
-##### DAA_CG_ADDRESSING
+##### DALI 控制装置地址分配
+
+###### DAA_CG_ADDRESSING
 
 DAA_CG_ADDRESSING 命令PDU的data部分内容为：
 
@@ -1004,6 +1006,8 @@ DAA_CG_ADDRESSING 命令PDU的data部分内容为：
 * ForceRestart：如果有未完成的分配，是否强制重启分配。0：否，等待当前分配完成；1：是，强制结束当前未完成的分配，重新启动分配。
 * NoIntInd：No Intermediate Indication，不需要分配过程中汇报进度。0：分配过程中汇报状态变化；1：不汇报，直到分配完成后才汇报分配结果。
 * UnaddrOnly：Unaddressed Only,只对未分配地址执行地址分配。0：已有地址的设备将会先被删除地址，然后对所有设备执行地址重新分配，适用于全新安装；1：仅对未分配地址的设备执行地址分配，用于系统扩展。
+
+###### DAA_CG_ADDRESSING_IND
 
 ##### DAA_CG_CTRL
 
