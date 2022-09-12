@@ -1,6 +1,6 @@
 # MDA180 DALI AC 接口模块通信协议
 
-版本：v0.9， 更新日期：2022-08-30
+版本：v0.12， 更新日期：2022-09-09
 
 2022(c) 南京美加杰智能科技有限公司 www.meijay.com
 
@@ -8,7 +8,7 @@
 
 本文档定义了MDA180 DALI **ACIP** （**A**pplication **C**ontroller **I**nterface **P**rotocal，应用控制器模块接口通信协议)。
 
-## 接口
+## 接口 
 
 ### UART
 
@@ -899,82 +899,53 @@ DALI 应用命令接口（DALI Application Command Interface）用来对底层DA
 
 DAA_CG_DISC 命令PDU的data部分内容为：
 
-| 1 byte  |      1 byte      |
-| :-----: | :--------------: |
-| Channel | DiscoveryOptions |
+| 1 byte  |      1 byte      |   1 byte   |
+| :-----: | :--------------: | :--------: |
+| Channel | DiscoveryOptions | TargetAddr |
 
 其中，
 
 * Channel：DALI 通道编号。
 * DiscoveryOptions：搜索选项。
+* TargetAddr：搜索目标地址。0~63， 短地址指定的单个设备；65~79，对应组地址0~15，单个组地址；126，对应未分配地址的所有设备；127，对应所有设备，此时会执行短地址空间扫描。
 
 **DiscoveryOptions**
 
-|      | bit 7:5  | bit 4   | bit 3        | bit 2    | bit 1:0 |
-| ---- | :------: | ------- | ------------ | -------- | ------- |
-|      | Reserved | QueryDT | ForceRestart | NoIntInd | Mode    |
+| bit 7:5  |  bit 4   |    bit 3     |  bit 2   | bit 1:0 |
+| :------: | :------: | :----------: | :------: | :-----: |
+| 保留未用 | 保留未用 | ForceRestart | NoIntInd |  Mode   |
 
 其中，
 
-* Reserved：保留未用。
-* QueryDT：Query Device Type, 需要查询设备类型。0：不需要，1：需要，此处查询仅返回单个DeviceType类型或者指示存在多个设备类型，多个设备类型仍需要主机发起独立查询请求来获取控制装置支持的所有设备类型列表。
 * ForceRestart：如果有未完成的搜索，是否强制重启搜索。0：否，等待当前搜索完成；1：是，强制结束当前未完成的搜索，重新启动搜索。
-* NoIntInd：No Intermediate Indication, 不需要搜索过程中汇报进度。0：不汇报，直到搜索完成后才汇报搜索结果；1：搜索过程中汇报搜索状态变化。
-* Mode：搜索模式，取值0~3。0：搜索已分配地址的设备；1：搜索是否存在未分配地址的设备；2：搜索存在重复地址的设备；3：搜索所有设备返回已分配地址的设备以及是否存在未分配地址的设备。
+* NoIntInd：No Intermediate Indication，不需要搜索过程中汇报进度。0：搜索过程中汇报状态变化；1：不汇报，直到搜索完成后才汇报搜索结果。
+* Mode：搜索模式，取值0~3。注意搜索模式和搜索目标地址是不同的，使用二者的组合可以实现多种搜索意图。
+  * 0：搜索返回地址存在设备、存在重复设备和不存在设备的指示；
+  * 1：搜索仅返回地址存在设备的指示；
+  * 2：搜索仅返回地址存在重复设备的指示；
+  * 3：搜索仅返回地址不存在设备的指示。
 
 ###### DAA_CG_DISC_IND
 
-DAA_CG_DISC_IND 数据帧用于汇报设备搜索结果，如果DAA_CG_DISC中指定了DiscoveryOptions的NoIntermediateIndication为1，则在搜索过程中每当发现新的设备，模块都会发送DAA_CG_DISC_IND 用于汇报状态。否则，模块只有在结束搜索后才发送该数据帧进行汇报。
-
-如果DAA_CG_DISC中DiscoveryOptions的ExpiredTime不为0，则模块搜索过程会在超出ExpiredTime时异常结束。
-
-如果DAA_CG_DISC中DiscoveryOptions的RequireQueryDeviceType为1，则模块搜索过程进行Query DeviceType，并将结果包含在DAA_CG_DISC_IND中。
+DAA_CG_DISC_IND 数据帧用于汇报设备搜索结果，搜索过程中每当发现新的设备，模块都会发送DAA_CG_DISC_IND 用于汇报状态。
 
 DAA_CG_DISC_IND 数据帧的PDU data定义如下：
 
-| 1 byte  |     1 byte      |    0.. N byte(s)     |
-| :-----: | :-------------: | :------------------: |
-| Channel | DiscoveryStatus | DiscoveredDeviceList |
+| 1 byte  |  1 byte   |   1 byte   |  1 byte/16 bytes   |
+| :-----: | :-------: | :--------: | :----------------: |
+| Channel | DiscState | TargetAddr | Present/PresentMap |
 
 其中，
 
 * Channel：DALI 通道编号。
-* DiscoveryStatus：搜索状态指示。含义参考后文的DiscoveryStatus说明。
-* DiscoveredDeviceList：搜索到的设备列表，具体格式参考DiscoveredDeviceList说明。
+* DiscState：搜索状态，取值0~15。0： Running，进行中未完成；1：Finished，正常结束；2：Pending， 设备或者总线忙，等待；3：Exception， 异常退出； 4~15：保留 。
+* TargetAddr：当前搜索的目标设地址。0~63：短地址；126：未分配地址的所有设备，仅当没有搜索到设备时使用；127：所有设备，仅当DiscState为Finished时使用。
+* Present：当前搜索设备短地址是否存在的结果。仅当DiscState为Running时，汇报单个短地址搜索结果。0： NO，不存在；255：YES，存在单个设备；254：存在多个设备（地址重复）；253：未知错误。1~252：保留未用。
+* PresentMap：总线地址搜索结果分布。仅当DiscState为Finished时，汇报整个地址空间搜索的结果。
+  * 16 bytes，共128 bits。 
+  * 高位在前，每2个bit表示一个ShortAddress扫描的结果。
+  * 2-bit的状态值取值为0~3。0：不存在；1：存在；2：存在重复地址设备；3：未知。
 
-**DiscoveryStatus**
-
-|       bit 7       |         bit 6          | bit 5:4  |    bit 3:0     |
-| :---------------: | :--------------------: | -------- | :------------: |
-| DeviceTypeQueried | UnaddressedDeviceFound | 保留未用 | DiscoveryState |
-
-其中，
-
-* DeviceTypeQueried：包含DeviceType。
-* UnaddressedDeviceFound：发现未分配地址的设备。
-* DiscoveryState：搜索状态，取值0~15。0： 正常已完成；1：进行中；2：超时结束；3：异常结束；4~15：保留 。
-
-**DiscoveredDeviceList**
-
-|   1 byte   |     0.. M byte(s)      |
-| :--------: | :--------------------: |
-| ListLength | DiscoveredDeviceRecord |
-
-其中，
-
-* ListLength：列表长度。
-* DiscoveredDeviceRecord： 已发现设备的记录，参考DiscoveredDeviceRecord格式说明。
-
-**DiscoveredDeviceRecord**
-
-|    1 byte    |   1 byte   |
-| :----------: | :--------: |
-| ShortAddress | DeviceType |
-
-其中，
-
-* ShortAddress：0~63表示已分配地址的设备短地址；255（0xFF）表示存在未分配地址的设备。
-* DeviceType：设备类型。0~223： 设备类型， 目前DALI标准中实际定义启用的设备类型仅为一部分；224~253：保留未用；254：没有支持任何扩展设备类型， 或者当DiscoveryStatus中的DeviceTypeQueried为0时；255：支持多个扩展设备类型。
 
 ##### DALI 控制装置地址分配
 
@@ -986,20 +957,31 @@ DAA_CG_ADDRESSING 命令PDU的data部分内容为：
 | :-----: | :---------------: |
 | Channel | AddressingOptions |
 
-其中，
 
-* Channel：DALI 通道编号。
-* AddressingOptions：地址分配选项。
 
 **AddressingOptions**
 
-| bit 7    | bit 6    | bit 5 |     bit 4     | bit 3   | bit 2        | bit 1    | bit 0      |
-| -------- | -------- | ----- | :-----------: | ------- | ------------ | -------- | ---------- |
-| Reserved | Reserved | VisFb | IgnoreNotRspd | QueryDT | ForceRestart | NoIntInd | UnaddrOnly |
+| bit 7     | bit 6        | bit 5 | bit 4         | bit 3   | bit 2        | bit 1    | bit 0      |
+| --------- | ------------ | ----- | ------------- | ------- | ------------ | -------- | ---------- |
+| QueryInfo | RemoveGroups | VisFb | IgnoreNotRspd | QueryDT | ForceRestart | NoIntInd | UnaddrOnly |
 
 其中，
 
-* Reserved：保留未用。
+* QueryInfo：查询设备的基本信息，如
+    * DALI Version Number
+    * GTIN 0~5
+    * Device Type List
+    * 102 Control gear 参数
+        * STATUS
+        * ACTUAL LEVEL
+        * MIN LEVEL
+        * MAX LEVEL
+        * FADE TIME/FADE RATE
+        * PHYSICAL MINIMUM LEVEL
+        * GROUPS 0-7, 8-15
+
+
+* RemoveGroups：移除分组。
 * VisFb：Visible Feedback分配过程是否需要视觉反馈。0：无反馈；1：分配开始先关闭待分配的设备，在分配过程中依次点亮获得地址的设备。
 * IgnoreNotRspd: Ignore Not Responding，忽略不响应的设备。0：如果有不响应的设备则停止分配；1：忽略不响应的设备。 
 * QueryDT：Query Device Type，需要查询设备类型。0：不需要，1：需要，此处查询仅返回单个DeviceType类型或者指示存在多个设备类型，多个设备类型仍需要主机发起独立查询请求来获取控制装置支持的所有设备类型列表。
@@ -1007,7 +989,43 @@ DAA_CG_ADDRESSING 命令PDU的data部分内容为：
 * NoIntInd：No Intermediate Indication，不需要分配过程中汇报进度。0：分配过程中汇报状态变化；1：不汇报，直到分配完成后才汇报分配结果。
 * UnaddrOnly：Unaddressed Only,只对未分配地址执行地址分配。0：已有地址的设备将会先被删除地址，然后对所有设备执行地址重新分配，适用于全新安装；1：仅对未分配地址的设备执行地址分配，用于系统扩展。
 
+###### DAA_CG_ADDESSING_WITH_MASK
+
+DAA_CG_ADDESSING_WITH_MASK命令PDU的data部分内容为：
+
+| 1 byte  |      1 byte       |     8 bytes     |
+| :-----: | :---------------: | :-------------: |
+| Channel | AddressingOptions | AllowedAddrMask |
+
+其中，
+
+* Channel：DALI 通道编号。
+* AddressingOptions：地址分配选项。参考DAA_CG_ADDESSING的AddressingOptions说明。
+* AllowedAddrMask: 8 字节，高字节在前，每个bit对应63~0共64个短地址允许位。每个字节均为0xFF表示每个地址都是允许的。
+
 ###### DAA_CG_ADDRESSING_IND
+
+DAA_CG_ADDRESSING_IND数据帧用于汇报设备地址分配结果，搜索过程中每当对设备进行地址分配，模块都会发送DAA_CG_ADDRESSING_IND用于汇报状态。
+
+DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
+
+| 1 byte  |     1 byte      | 1 byte |      1 byte      |
+| :-----: | :-------------: | :----: | :--------------: |
+| Channel | AddressingState |  Addr  | AddressingResult |
+
+其中，
+
+* Channel：DALI 通道编号。
+* AddressingState：地址分配状态，取值0~15。0： Running, 进行中未完成；1：Finished, 正常结束；2：Pending， 设备或者总线忙，等待；3：Exception； 6~15：保留 。
+* Addr：
+  * AddressingState=Running时，表示当前尝试分配的设备短地址（0~63）。
+  * AddressingState=Finished时，固定为0xFF。
+  * AddressingState为其他值时，0~63表示结束时正在分配的地址，0xFF表示无可用合法地址。
+
+* AddressingResult：
+  * AddressingState=Running时，表示对设备短地址分配（编程）的结果。0： 失败，未完成分配；255：成功，对单个设备完成地址分配；254：分配失败，存在多个设备（地址重复）；253：未知错误； 252：DeviceNotResponding，设备不响应；251：总线上设备超过64个；250：没有可供分配的短地址；249：Timeout，超时；1~252：保留未用。
+  * AddressingState为其他值时，表示新增完成地址分配的设备数量，0~64。
+
 
 ##### DAA_CG_CTRL
 
