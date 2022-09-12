@@ -1,6 +1,6 @@
 # MDA180 DALI AC 接口模块通信协议
 
-版本：v0.12， 更新日期：2022-09-09
+版本：v0.13， 更新日期：2022-09-12
 
 2022(c) 南京美加杰智能科技有限公司 www.meijay.com
 
@@ -350,6 +350,12 @@ Data内容为空。
 | ---------------- | ------------- | ------------- |
 | NumberOfChannels | BPSIntegrated | BPSMaxCurrent |
 
+其中：
+
+* NumberOfChannels：DALI通道数，取值范围1~4。
+* BPSIntegrated：是否集成总线电源。0：否；1：是。
+* BPSMaxCurrent：集成总线电源的最大电流。0：无集成总线电源；8~250：8~250mA；其他数值：保留未用。
+
 #### DALI 通道开关控制
 
 ##### DACM_START
@@ -402,15 +408,68 @@ Data 内容定义如下：
 | ------- | ------------- | ------ | ---------- | ---------- |
 | Channel | TransceiverOn | BPSOn  | BPSFailure | BusFailure |
 
+其中，
+
+* Channel：DALI通道。
+* TransceiverOn：DALI收发器开启。
+* BPSOn：集成总线电源是否开启。
+* BPSFailure：总线电源是否存在故障。
+* BusFailure：DALI总线是否存在故障。
+
 #### DALI 通道回路干接点控制
 
 ##### DACM_CONTACT_ON
 
+开启回路控制节点。
+
+Data 内容定义如下：
+
+| 1 byte  |
+| ------- |
+| Channel |
+
+
+
+回复AckNack。
+
 ##### DACM_CONTACT_OFF
+
+关闭回路控制节点。
+
+Data 内容定义如下：
+
+| 1 byte  |
+| ------- |
+| Channel |
+
+
+
+回复AckNack。
 
 ##### DACM_CONTACT_STATUS
 
+获取回路控制节点状态，模块将返回DACM_CONTACT_STATUS_RSP。
+
+Data 内容定义如下：
+
+| 1 byte  |
+| ------- |
+| Channel |
+
 ##### DACM_CONTACT_STATUS_RSP
+
+包括回路控制节点状态开启状态信息。
+
+Data 内容定义如下：
+
+| 1 byte  |  1 byte   |
+| ------- | :-------: |
+| Channel | ContactOn |
+
+其中，
+
+* Channel：通道号。
+* ContactOn：回路节点是否开启。
 
 ### DALI 透传接口
 DALI 透传接口适用于主机自行实现DALI应用层管理，支持在模块DALI通道总线上收发DALI数据帧。
@@ -881,7 +940,34 @@ DALI 应用命令接口（DALI Application Command Interface）用来对底层DA
 
 ##### DAA_BPS_CTRL
 
+开启DALI通道集成总线电源。
+
+Data 内容定义如下：
+
+| 1 byte  | 1 byte |
+| :-----: | :----: |
+| Channel | OnOff  |
+
+* Channel： DALI通道。
+* OnOff：开关。0：关闭BPS；1：打开BPS；其他数值：保留未用。
+
+回复AckNack。
+
 ##### DAA_BPS_STATUS
+
+获取DALI通道集成总线电源状态。
+
+Data 内容定义如下：
+
+| 1 byte  | 1 byte | 1 byte     |
+| ------- | ------ | ---------- |
+| Channel | BPSOn  | BPSFailure |
+
+其中，
+
+* Channel：DALI通道。
+* BPSOn：集成总线电源是否开启。
+* BPSFailure：总线电源是否存在故障。
 
 #### DALI 控制装置应用接口
 
@@ -1026,14 +1112,181 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
   * AddressingState=Running时，表示对设备短地址分配（编程）的结果。0： 失败，未完成分配；255：成功，对单个设备完成地址分配；254：分配失败，存在多个设备（地址重复）；253：未知错误； 252：DeviceNotResponding，设备不响应；251：总线上设备超过64个；250：没有可供分配的短地址；249：Timeout，超时；1~252：保留未用。
   * AddressingState为其他值时，表示新增完成地址分配的设备数量，0~64。
 
+##### DAA_CG_DAPC
+
+直接电弧功率控制。Data 部分格式：
+
+| 1 byte  | 1 byte  | 1 byte |
+| :-----: | :-----: | :----: |
+| Channel | Address | Level  |
+
+* Channel：DALI 通道。
+* Address：目标控制装置地址。0~63：短地址；64~79：（64+组地址）；126：广播（未分配地址设备）；127：广播（所有设备）。
+* Level：功率等级。0：关闭；254：100%；255：不改变，用于某些特殊场合。
+
+
+
+先返回 AckNack，在命令执行后返回 DAA_CG_DAPC_CFM。
+
+**DAA_CG_CTRL_CFM**
+
+| 1 byte  | 1 byte  | 1 byte | 1 byte |
+| :-----: | :-----: | :----: | :----: |
+| Channel | Address | Level  | Status |
+
+
 
 ##### DAA_CG_CTRL
 
+发送DALI 102 控制命令，控制命令无需DALI总线设备响应。包括以下命令：
+
+| 命令名称  | OpCode  | 描述 |
+| :-----: | :-----: | :----: |
+| OFF | 0x00 | 关闭 |
+| UP | 0x01 |  |
+| DOWN | 0x02 |  |
+| STEP UP | 0x03 |  |
+| STEP DOWN | 0x04 |  |
+| RECALL MAX LEVEL | 0x05 |  |
+| RECALL MIN LEVEL | 0x06 |  |
+| STEP DOWN AND OFF | 0x07 |  |
+| ON AND STEP UP | 0x08 |  |
+| ENABLE DAPC SEQUENCE | 0x09 |  |
+| GO TO LAST ACTIVE LEVEL | 0x0A |  |
+| GO TO SCENE (sceneNumber) | 0x10+sceneNumber |  |
+
+
+命令Data格式：
+
+| 1 byte  | 1 byte  | 1 byte |
+| :-----: | :-----: | :----: |
+| Channel | Address | OpCode |
+
+先返回 AckNack，在命令执行后返回 DAA_CG_CTRL_CFM。
+
+**DAA_CG_CTRL_CFM**
+
+| 1 byte  | 1 byte  | 1 byte | 1 byte |
+| :-----: | :-----: | :----: | :----: |
+| Channel | Address | OpCode | Status |
+
+
+
 ##### DAA_CG_CFG
+
+发送DALI 102 配置命令，配置命令一般带有参数，无需DALI总线设备回复，一般需要连续发送两次 （Send-twice)。包括以下命令：
+
+|             命令名称              |      OpCode      | 参数 | 描述 |
+| :-------------------------------: | :--------------: | ---- | :--: |
+|               RESET               |       0x20       |      | 复位 |
+|    STORE ACTUAL LEVEL IN DTR0     |       0x21       | DTR0 |      |
+|     SAVE PERSISTENT VARIABLES     |       0x22       |      |      |
+|    SET OPERATING MODE (*DTR0*)    |       0x23       | DTR0 |      |
+|    RESET MEMORY BANK (*DTR0*)     |       0x24       | DTR0 |      |
+|          IDENTIFY DEVICE          |       0x25       |      |      |
+|      SET MAX LEVEL (*DTR0*)       |       0x2A       | DTR0 |      |
+|      SET MIN LEVEL (*DTR0*)       |       0x2B       | DTR0 |      |
+| SET SYSTEM FAILURE LEVEL (*DTR0*) |       0x2C       | DTR0 |      |
+|   SET POWER ON LEVEL  (*DTR0*)    |       0x2D       | DTR0 |      |
+|      SET FADE TIME  (*DTR0*)      |       0x2E       | DTR0 |      |
+|      SET FADE RATE  (*DTR0*)      |       0x2F       | DTR0 |      |
+|  SET EXTENDED FADE TIME (*DTR0*)  |       0x30       | DTR0 |      |
+|    SET SCENE (*DTR0, sceneX*)     | 0x40+sceneNumber | DTR0 |      |
+|   REMOVE FROM SCENE (*sceneX*)    | 0x50+sceneNumber |      |      |
+|      ADD TO GROUP (*group*)       |    0x60+group    | DTR0 |      |
+|    REMOVE FROM GROUP (*group*)    |    0x70+group    |      |      |
+|    SET SHORT ADDRESS (*DTR0*)     |       0x80       | DTR0 |      |
+|        ENABLE WRITE MEMORY        |       0x81       |      |      |
+
+
+命令Data格式：
+
+| 1 byte  | 1 byte  | 1 byte |
+| :-----: | :-----: | :----: |
+| Channel | Address | OpCode |
+
+先返回 AckNack，在命令执行后返回 命令 DAA_CG_CFG_CFM。
+
+**DAA_CG_CFG_CFM**
+
+| 1 byte  | 1 byte  | 1 byte | 1 byte |
+| :-----: | :-----: | :----: | :----: |
+| Channel | Address | OpCode | Status |
+
+
 
 ##### DAA_CG_QUERY
 
+发送DALI 102 查询命令，查询命令可以无需参数或者带有参数，需要DALI总线设备回复。包括以下命令：
+
+|              命令名称               |      OpCode      | 参数     | 描述 |
+| :---------------------------------: | :--------------: | -------- | :--: |
+|            QUERY STATUS             |       0x90       |          |      |
+|     QUERY CONTROL GEAR PRESENT      |       0x91       |          |      |
+|         QUERY LAMP FAILURE          |       0x92       |          |      |
+|         QUERY LAMP POWER ON         |       0x93       |          |      |
+|          QUERY LIMIT ERROR          |       0x94       |          |      |
+|          QUERY RESET STATE          |       0x95       |          |      |
+|     QUERY MISSING SHORT ADDRESS     |       0x96       |          |      |
+|        QUERY VERSION NUMBER         |       0x97       |          |      |
+|         QUERY CONTENT DTR0          |       0x98       | DTR0     |      |
+|          QUERY DEVICE TYPE          |       0x99       |          |      |
+|       QUERY PHYSICAL MINIMUM        |       0x9A       |          |      |
+|         QUERY POWER FAILURE         |       0x9B       |          |      |
+|         QUERY CONTENT DTR1          |       0x9C       | DTR1     |      |
+|         QUERY CONTENT DTR2          |       0x9D       | DTR2     |      |
+|        QUERY OPERATING MODE         |       0x9E       |          |      |
+|       QUERY LIGHT SOURCE TYPE       |       0x9F       | DTR0/1/2 |      |
+|         QUERY ACTUAL LEVEL          |       0xA0       |          |      |
+|           QUERY MAX LEVEL           |       0xA1       |          |      |
+|           QUERY MIN LEVEL           |       0xA2       |          |      |
+|        QUERY POWER ON LEVEL         |       0xA3       |          |      |
+|     QUERY SYSTEM FAILURE LEVEL      |       0xA4       |          |      |
+|      QUERY FADE TIME/FADE RATE      |       0xA5       |          |      |
+|  QUERY MANUFACTURER SPECIFIC MODE   |       0xA6       |          |      |
+|       QUERY NEXT DEVICE TYPE        |       0xA7       |          |      |
+|      QUERY EXTENDED FADE TIME       |       0xA8       |          |      |
+|     QUERY CONTROL GEAR FAILURE      |       0xAA       |          |      |
+|    QUERY SCENE LEVEL (*sceneX*)     | 0xB0+sceneNumber |          |      |
+|          QUERY GROUPS 0-7           |       0xC0       |          |      |
+|          QUERY GROUPS 8-15          |       0xC1       |          |      |
+|      QUERY RANDOM ADDRESS (H)       |       0xC2       |          |      |
+|      QUERY RANDOM ADDRESS (M)       |       0xC3       |          |      |
+|      QUERY RANDOM ADDRESS (L)       |       0xC4       |          |      |
+| READ MEMORY LOCATION (*DTR1, DTR0*) |       0xC5       | DTR0/1   |      |
+|    QUERY EXTENDED VERSION NUMBER    |       0xFF       |          |      |
+
+命令Data格式：
+
+| 1 byte  | 1 byte  | 1 byte |
+| :-----: | :-----: | :----: |
+| Channel | Address | OpCode |
+
+先返回AckNack，命令执行后再返回 DAA_CG_QUERY_RSP。
+
+**DAA_CG_QUERY_RSP**
+
+| 1 byte  | 1 byte  | 1 byte | 1 byte | 1 byte |
+| :-----: | :-----: | :----: | :----: | :----: |
+| Channel | Address | OpCode | Status | Answer |
+
+
+
 ##### DAA_CG_MB_READ
+
+读取102 控制装置的MemoryBank。
+
+
+
+命令Data格式：
+
+| 1 byte  | 1 byte  | 1 byte |
+| :-----: | :-----: | :----: |
+| Channel | Address | OpCode |
+
+先返回AckNack，命令执行后再返回 DAA_CG_QUERY_RSP。
+
+
 
 ##### DAA_CG_MB_WRITE
 
@@ -1051,3 +1304,12 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 
 ## 主机侧完整应用示例
 
+## 附录
+### DALI 102控制装置命令列表
+此列表依据IEC 62386-102 ed2.0。
+
+
+
+### DALI 103控制设备命令列表
+
+暂未使用。
