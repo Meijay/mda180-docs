@@ -260,14 +260,15 @@ PDU定义如下：
 | **DAA_CG_DISC_IND**       | 0xB2 | 1         | AsyncReport  | DALI控制装置设备搜索指示   ||
 | **DAA_CG_ADDRESSING**     | 0x33 | 0         | AsyncRequest | DALI控制装置地址分配       ||
 | **DAA_CG_ADDRESSING_IND** | 0xB3 | 1         | AsyncReport  | DALI控制装置地址分配指示   ||
-| **DAA_CG_CTRL**           | 0x34 | 0         | AsyncRequest | DALI控制装置控制           ||
-| **DAA_CG_CFG**            | 0x35 | 0         | AsyncRequest | DALI控制装置配置           ||
-| **DAA_CG_QUERY**          | 0x36 | 0         | AsyncRequest | DALI控制装置查询           ||
-| **DAA_CG_MB_READ**        | 0x37 | 0         | AsyncRequest | DALI控制装置MemoryBank读取 ||
-| **DAA_CG_MB_WRITE**       | 0x38 | 0         | AsyncRequest | DALI控制装置MemoryBank写入 ||
-| **DAA_CG_APP_CTRL**       | 0x39 | 0       | AsyncRequest | DALI控制装置扩展控制       ||
-| **DAA_CG_APP_CFG**        | 0x3A | 0         | AsyncRequest | DALI控制装置扩展配置       ||
-| **DAA_CG_APP_QUERY**      | 0x3B | 0         | AsyncRequest | DALI控制装置扩展查询       ||
+| **DAA_CG_DAPC** | 0x34 | 0 | AsyncRequest | DALI控制装置电弧功率等级控制 ||
+| **DAA_CG_CTRL**           | 0x35 | 0         | AsyncRequest | DALI控制装置控制           ||
+| **DAA_CG_CFG**            | 0x36 | 0         | AsyncRequest | DALI控制装置配置           ||
+| **DAA_CG_QUERY**          | 0x37 | 0         | AsyncRequest | DALI控制装置查询           ||
+| **DAA_CG_MB_READ**        | 0x38 | 0         | AsyncRequest | DALI控制装置MemoryBank读取 ||
+| **DAA_CG_MB_WRITE**       | 0x39 | 0         | AsyncRequest | DALI控制装置MemoryBank写入 ||
+| **DAA_CG_APP_CTRL**       | 0x3A | 0       | AsyncRequest | DALI控制装置扩展控制       ||
+| **DAA_CG_APP_CFG**        | 0x3B | 0         | AsyncRequest | DALI控制装置扩展配置       ||
+| **DAA_CG_APP_QUERY**      | 0x3C | 0         | AsyncRequest | DALI控制装置扩展查询       ||
 
 
 
