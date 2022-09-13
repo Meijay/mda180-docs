@@ -1202,9 +1202,9 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 
 命令Data格式：
 
-| 1 byte  | 1 byte  | 1 byte |
-| :-----: | :-----: | :----: |
-| Channel | Address | OpCode |
+| 1 byte  | 1 byte  | 1 byte | 1 byte |
+| :-----: | :-----: | :----: | :----: |
+| Channel | Address | OpCode | Value  |
 
 先返回 AckNack，在命令执行后返回 命令 DAA_CG_CFG_CFM。
 
@@ -1281,15 +1281,29 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 
 命令Data格式：
 
-| 1 byte  | 1 byte  | 1 byte |
-| :-----: | :-----: | :----: |
-| Channel | Address | OpCode |
+| 1 byte  | 1 byte  | 1 byte  | 1 byte | 1 byte | 1 byte |
+| :-----: | :-----: | :-----: | :----: | :----: | :----: |
+| Channel | Address | Options |  Bank  | First  |  Last  |
 
-先返回AckNack，命令执行后再返回 DAA_CG_QUERY_RSP。
+先返回AckNack，命令执行后再返回 DAA_CG_MB_READ_RSP。
 
 
 
 ##### DAA_CG_MB_WRITE
+
+##### DAA_CG_MB_ACCESS
+
+DALI 控制装置Memory Bank操作。
+
+命令Data格式：
+
+| 1 byte  | 1 byte  | 1 byte  | 1 byte | 1 byte | 1 byte |
+| :-----: | :-----: | :-----: | :----: | :----: | :----: |
+| Channel | Address | Options |  Bank  | First  |  Last  |
+
+先返回AckNack，命令执行后再返回 DAA_CG_MB_ACCESS_RSP。
+
+
 
 ##### DAA_CG_APP_CTRL
 
