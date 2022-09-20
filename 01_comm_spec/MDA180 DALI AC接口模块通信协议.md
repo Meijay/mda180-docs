@@ -1,6 +1,6 @@
 # MDA180 DALI AC 接口模块通信协议
 
-版本：v0.13， 更新日期：2022-09-12
+版本：v0.14， 更新日期：2022-09-20
 
 2022(c) 南京美加杰智能科技有限公司 www.meijay.com
 
@@ -226,26 +226,29 @@ PDU定义如下：
 
 ## 接口命令定义
 
-| 名称                | CmdId | Dir | FrameType    | 描述             | 响应                   |
+| 名称                | CmdId | Dir | FrameType    | 描述             | 相关响应/请求          |
 | ------------------- | ----- | --------- | ------------ | ---------------- | ---------------------- |
 | **SYS_RESET_REQ**   | 0x00  | 0         | SyncRequest  | 请求模块复位     | AckNack，SYS_RESET_IND |
-| **SYS_RESET_IND**   | 0x80  | 1         | AsyncReport  | 模块复位指示     |                      |
+| **SYS_RESET_IND**   | 0x80  | 1         | AsyncReport  | 模块复位指示     | SYS_RESET_REQ |
 | **SYS_VERSION**     | 0x01  | 0         | SyncRequest  | 获取模块版本信息 | SYS_VERSION_RSP        |
-| **SYS_VERSION_RSP** | 0x81 | 1         | SyncResponse |                  |                        |
+| **SYS_VERSION_RSP** | 0x81 | 1         | SyncResponse | 模块版本信息响应 | SYS_VERSION |
 | **SYS_CFG_READ** | 0x02  | 0         | SyncRequest  | 读取模块配置数据 | SYS_CFG_READ_RSP |
-| **SYS_CFG_READ_RSP** | 0x82 | 1 | SyncResponse | 模块配置读取响应 |  |
+| **SYS_CFG_READ_RSP** | 0x82 | 1 | SyncResponse | 模块配置读取响应 | SYS_CFG_READ |
 | **SYS_CFG_WRITE** | 0x03 | 0         | SyncRequest  | 写入模块配置数据 | SYS_CFG_WRITE_RSP |
-| **SYS_CFG_WRITE_RSP** | 0x83 | 1 | SyncResponse | 模块配置写入响应 |  |
+| **SYS_CFG_WRITE_RSP** | 0x83 | 1 | SyncResponse | 模块配置写入响应 | SYS_CFG_WRITE |
 | **DACM_INFO**               | 0x10 | 0         | SyncRequest  | 获取DALI信息                         | DACM_INFO_RSP           |
-| **DACM_INFO_RSP** | 0x90 | 1 | SyncResponse | DALI信息响应 |  |
+| **DACM_INFO_RSP** | 0x90 | 1 | SyncResponse | DALI信息响应 | DACM_INFO |
 | **DACM_START**              | 0x11 | 0         | SyncRequest  | 开启DALI通道                         | AckNack                 |
 | **DACM_STOP**               | 0x12 | 0         | SyncRequest  | 关闭DALI通道                         | AckNack                 |
 | **DACM_STATUS**             | 0x13 | 0         | SyncRequest  | 获取DALI通道状态                     | DACM_STATUS_RSP         |
-| **DACM_STATUS_RSP** | 0x93 | 1 | SyncResponse | DALI通道状态响应 |  |
+| **DACM_STATUS_RSP** | 0x93 | 1 | SyncResponse | DALI通道状态响应 | DACM_STATUS |
 | **DACM_CONTACT_ON**         | 0x14 | 0         | SyncRequest  | 打开DALI通道对应的回路干接点信号     | AckNack                 |
 | **DACM_CONTACT_OFF**        | 0x15 | 0         | SyncRequest  | 关闭DALI通道对应的回路干接点信号     | AckNack                 |
 | **DACM_CONTACT_STATUS**     | 0x16 | 0         | SyncRequest  | 获取DALI通道对应的回路干接点信号状态 | DACM_CONTACT_STATUS_RSP |
-| **DACM_CONTACT_STATUS_RSP** | 0x96 | 1         | SyncResponse | DALI通道对应的回路干接点信号状态响应 |                       |
+| **DACM_CONTACT_STATUS_RSP** | 0x96 | 1         | SyncResponse | DALI通道对应的回路干接点信号状态响应 | DACM_CONTACT_STATUS |
+| **DACM_BPS_CTRL** | 0x17 | 0 | SyncRequest | DALI总线电源控制 | AckNack |
+| **DACM_BPS_STAUS** | 0x18 | 0 | SyncRequest | DALI总线电源状态获取 | DACM_BPS_STAUS_RSP |
+| **DACM_BPS_STAUS_RSP** | 0x98 | 1 | SyncResponse | DALI总线电源状态获取响应 | DACM_BPS_STAUS |
 | **DATT_SEND**      | 0x20 | 0         | AsyncRequest | 发送DALI总线数据 | AckNack，DATT_DATA_IND |
 | **DATT_SEND8**     | 0x21 | 0         | AsyncRequest | 发送8bit数据     | AckNack，DATT_DATA_IND |
 | **DATT_SEND16**    | 0x22 | 0         | AsyncRequest | 发送16bit数据    | AckNack，DATT_DATA_IND |
@@ -254,21 +257,51 @@ PDU定义如下：
 | **DATT_RECV_POLL** | 0x29 | 0         | Poll         | 查询接收数据     | DATT_DATA_IND          |
 | **DATT_DATA_IND** | 0xA9 | 1         | AsyncReport  | DALI总线数据指示 |                      |
 | **DATT_EVENT_IND** | 0xAA | 1         | AsyncReport  | DALI总线事件汇报 |  |
-| **DAA_BPS_CTRL**          | 0x30 | 0         | SyncRequest  | DALI总线电源控制           ||
-| **DAA_BPS_STAUS**         | 0x31 | 0         | SyncRequest  | DALI总线电源状态获取       ||
-| **DAA_CG_DISC**           | 0x32 | 0         | AsyncRequest | DALI控制装置设备搜索       ||
-| **DAA_CG_DISC_IND**       | 0xB2 | 1         | AsyncReport  | DALI控制装置设备搜索指示   ||
-| **DAA_CG_ADDRESSING**     | 0x33 | 0         | AsyncRequest | DALI控制装置地址分配       ||
-| **DAA_CG_ADDRESSING_IND** | 0xB3 | 1         | AsyncReport  | DALI控制装置地址分配指示   ||
-| **DAA_CG_DAPC** | 0x34 | 0 | AsyncRequest | DALI控制装置电弧功率等级控制 ||
-| **DAA_CG_CTRL**           | 0x35 | 0         | AsyncRequest | DALI控制装置控制           ||
-| **DAA_CG_CFG**            | 0x36 | 0         | AsyncRequest | DALI控制装置配置           ||
-| **DAA_CG_QUERY**          | 0x37 | 0         | AsyncRequest | DALI控制装置查询           ||
-| **DAA_CG_MB_READ**        | 0x38 | 0         | AsyncRequest | DALI控制装置MemoryBank读取 ||
-| **DAA_CG_MB_WRITE**       | 0x39 | 0         | AsyncRequest | DALI控制装置MemoryBank写入 ||
-| **DAA_CG_APP_CTRL**       | 0x3A | 0       | AsyncRequest | DALI控制装置扩展控制       ||
-| **DAA_CG_APP_CFG**        | 0x3B | 0         | AsyncRequest | DALI控制装置扩展配置       ||
-| **DAA_CG_APP_QUERY**      | 0x3C | 0         | AsyncRequest | DALI控制装置扩展查询       ||
+| **DAA_BPS_CTRL**          | 0x30 | 0         | SyncRequest  | DALI总线电源控制           |AckNack|
+| **DAA_BPS_STAUS**         | 0x31 | 0         | SyncRequest  | DALI总线电源状态获取       |DAA_BPS_STATUS_RSP|
+| DAA_BPS_STATUS_RSP | 0xB1 | 1 | SyncResponse | DALI总线电源状态响应 |DAA_BPS_STAUS|
+| **DAA_CG_DISC**           | 0x32 | 0         | AsyncRequest | DALI控制装置设备搜索       |AckNack，DAA_CG_DISC_IND|
+| **DAA_CG_DISC_IND**       | 0xB2 | 1         | AsyncReport  | DALI控制装置设备搜索指示   |DAA_CG_DISC|
+| **DAA_CG_ADDRESSING**     | 0x33 | 0         | AsyncRequest | DALI控制装置地址分配       |AckNack，DAA_CG_ADDRESSING_IND|
+| **DAA_CG_ADDRESSING_IND** | 0xB3 | 1         | AsyncReport  | DALI控制装置地址分配指示   |DAA_CG_ADDRESSING|
+| **DAA_CG_DAPC** | 0x34 | 0 | AsyncRequest | DALI控制装置电弧功率等级控制 |AckNack，DAA_CG_DAPC_CFM|
+| DAA_CG_DAPC_CFM | 0xB4 | 1 | AsyncReport |  |DAA_CG_DAPC|
+| **DAA_CG_CTRL**           | 0x35 | 0         | AsyncRequest | DALI控制装置控制           |AckNack，DAA_CG_CTRL_CFM|
+| DAA_CG_CTRL_CFM | 0xB5 | 1 | AsyncReport |  |DAA_CG_CTRL|
+| **DAA_CG_CFG**            | 0x36 | 0         | AsyncRequest | DALI控制装置配置           |AckNack，DAA_CG_CFG_CFM|
+| DAA_CG_CFG_CFM | 0xB6 | 1 | AsyncReport |  |DAA_CG_CFG|
+| **DAA_CG_QUERY**          | 0x37 | 0         | AsyncRequest | DALI控制装置查询           |AckNack，DAA_CG_QUERY_RSP|
+| DAA_CG_QUERY_RSP | 0xB7 | 1 | AsyncReport |  |DAA_CG_QUERY|
+| **DAA_CG_MB_READ**        | 0x38 | 0         | AsyncRequest | DALI控制装置MemoryBank读取 |AckNack，DAA_CG_MB_READ_RSP|
+| DAA_CG_MB_READ_RSP | 0xB8 | 1 | AsyncReport |  |DAA_CG_MB_READ|
+| **DAA_CG_MB_WRITE**       | 0x39 | 0         | AsyncRequest | DALI控制装置MemoryBank写入 |AckNack，DAA_CG_MB_WRITE_CFM|
+| DAA_CG_MB_WRITE_CFM | 0xB9 | 1 | AsyncReport |  |DAA_CG_MB_WRITE|
+| **DAA_CG_APP_CTRL**       | 0x3A | 0       | AsyncRequest | DALI控制装置扩展控制       |AckNack，DAA_CG_APP_CTRL_CFM|
+| DAA_CG_APP_CTRL_CFM | 0xBA | 1 | AsyncReport |  |DAA_CG_APP_CTRL|
+| **DAA_CG_APP_CFG**        | 0x3B | 0         | AsyncRequest | DALI控制装置扩展配置       |AckNack，DAA_CG_APP_CFG_CFM|
+| DAA_CG_APP_CFG_CFM | 0xBB | 1 | AsyncReport |  |DAA_CG_APP_CFG|
+| **DAA_CG_APP_QUERY**      | 0x3C | 0         | AsyncRequest | DALI控制装置扩展查询       |AckNack，DAA_CG_APP_QUERY_RSP|
+| DAA_CG_APP_QUERY_RSP | 0xBC | 1 | AsyncReport |  |DAA_CG_APP_QUERY|
+| **DAA_CG_INFO_READ** | 0x40 | 0 | AsyncRequest | DALI控制装置信息读取 |AckNack，DAA_CG_INFO_READ_RSP|
+| DAA_CG_INFO_READ_RSP | 0xC0 | 1 | AsyncReport |  |DAA_CG_INFO_READ|
+| **DAA_CG_VARS_READ** | 0x41 | 0 | AsyncRequest | DALI控制装置变量读取 |AckNack，DAA_CG_VARS_READ_RSP|
+| DAA_CG_VARS_READ_RSP | 0xC1 | 1 | AsyncReport |  |DAA_CG_VARS_READ|
+| **DAA_CG_VARS_SAVE** | 0x42 | 0 | AsyncRequest | DALI控制装置变量保存 |AckNack，DAA_CG_VARS_SAVE_CFM|
+| DAA_CG_VARS_SAVE_CFM | 0xC2 | 1 | AsyncReport |  |DAA_CG_VARS_SAVE|
+| **DAA_CG_APP_VARS_READ** | 0x43 | 0 | AsyncRequest | DALI控制装置应用扩展变量读取 |AckNack，DAA_CG_APP_VARS_READ_RSP|
+| DAA_CG_APP_VARS_READ_RSP | 0xC3 | 1 | AsyncReport |  |DAA_CG_APP_VARS_READ|
+| **DAA_CG_APP_VARS_SAVE** | 0x44 | 0 | AsyncRequest | DALI控制装置用用扩展变量保存 |AckNack，DAA_CG_APP_VARS_SAVE_CFM|
+| DAA_CG_APP_VARS_SAVE_CFM | 0xC4 | 1 | AsyncReport |  |DAA_CG_APP_VARS_SAVE|
+| **DAA_CG_MB_ACCESS** | 0x45 | 0 | AsyncRequest | DALI控制装置存储区访问 |AckNack，DAA_CG_MB_ACCESS_RSP|
+| DAA_CG_MB_ACCESS_RSP | 0xC5 | 1 | AsyncReport |  |DAA_CG_MB_ACCESS|
+| **DAA_MACRO_TEMPBUF_READ** | 0x70 | 0 | AsyncRequest | 宏指令临时缓冲区读取 |AckNack，DAA_MACRO_TEMPBUF_READ_RSP|
+| DAA_MACRO_TEMPBUF_READ_RSP | 0xF0 | 1 | AsyncReport |  |DAA_MACRO_TEMPBUF_READ|
+| **DAA_MACRO_TEMPBUF_WRITE** | 0x71 | 0 | AsyncRequest | 宏指令临时缓冲区写入 |AckNack，DAA_MACRO_TEMPBUS_WRITE_CFM|
+| DAA_MACRO_TEMPBUS_WRITE_CFM | 0xF1 | 1 | AsyncReport |  |DAA_MACRO_TEMPBUF_WRITE|
+| **DAA_MACRO_STATUS** | 0x72 | 0 | AsyncRequest | 查询宏指令运行状态 |AckNack，DAA_MACRO_STATUS_RSP|
+| DAA_MACRO_STATUS_RSP | 0xF2 | 1 | AsyncReport |  |DAA_MACRO_STATUS|
+| **DAA_MACRO_STOP** | 0x73 | 0 | AsyncRequest | 请求宏指令停止 |AckNack，DAA_MACRO_STOP_CFM|
+| DAA_MACRO_STOP_CFM | 0xF3 | 1 | AsyncReport |  |DAA_MACRO_STOP|
 
 
 
@@ -471,6 +504,56 @@ Data 内容定义如下：
 
 * Channel：通道号。
 * ContactOn：回路节点是否开启。
+
+
+
+#### DALI 总线电源管理应用接口
+
+##### DACM_BPS_CTRL
+
+开启DALI通道集成总线电源。
+
+Data 内容定义如下：
+
+| 1 byte  | 1 byte |
+| :-----: | :----: |
+| Channel | OnOff  |
+
+* Channel： DALI通道。
+* OnOff：开关。0：关闭BPS；1：打开BPS；其他数值：保留未用。
+
+回复AckNack。
+
+##### DACM_BPS_STATUS
+
+获取DALI通道集成总线电源状态。
+
+Data 内容定义如下：
+
+| 1 byte  | 1 byte | 1 byte     |
+| ------- | ------ | ---------- |
+| Channel | BPSOn  | BPSFailure |
+
+其中，
+
+* Channel：DALI通道。
+* BPSOn：集成总线电源是否开启。
+* BPSFailure：总线电源是否存在故障。
+
+##### DACM_BPS_STATUS_RSP
+
+包括回路控制节点状态开启状态信息。
+
+Data 内容定义如下：
+
+| 1 byte  | 1 byte |
+| ------- | :----: |
+| Channel | BPSOn  |
+
+其中，
+
+* Channel：通道号。
+* BPSOn：集成总线电源是否开启。
 
 ### DALI 透传接口
 DALI 透传接口适用于主机自行实现DALI应用层管理，支持在模块DALI通道总线上收发DALI数据帧。
@@ -937,39 +1020,6 @@ DALI 102标准中读Memory Bank数据分为以下几个步骤：
 ### DALI 应用命令接口
 
 DALI 应用命令接口（DALI Application Command Interface）用来对底层DALI数据传输进行封装，为上层业务提供简单的调用接口。使用该接口可以减少主机和模块的交互次数从而降低主机对DALI底层传输指令的控制需求，也可以提高通信效率改善用户体验，当然和透传接口相比，无法做到对DALI总线数据传输细节的监控。这些接口命令包括：
-#### DALI 总线电源管理应用接口
-
-##### DAA_BPS_CTRL
-
-开启DALI通道集成总线电源。
-
-Data 内容定义如下：
-
-| 1 byte  | 1 byte |
-| :-----: | :----: |
-| Channel | OnOff  |
-
-* Channel： DALI通道。
-* OnOff：开关。0：关闭BPS；1：打开BPS；其他数值：保留未用。
-
-回复AckNack。
-
-##### DAA_BPS_STATUS
-
-获取DALI通道集成总线电源状态。
-
-Data 内容定义如下：
-
-| 1 byte  | 1 byte | 1 byte     |
-| ------- | ------ | ---------- |
-| Channel | BPSOn  | BPSFailure |
-
-其中，
-
-* Channel：DALI通道。
-* BPSOn：集成总线电源是否开启。
-* BPSFailure：总线电源是否存在故障。
-
 #### DALI 控制装置应用接口
 
 ##### DALI 控制装置搜索
