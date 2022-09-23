@@ -635,7 +635,7 @@ Data定义为
 
 BusIdleTime表示DALI总线发送或接收一个数据帧之前的空闲时间，取值范围0~0xFFFF。其中0~0xFFFE：表示时间长度为该数值 x 83.3us (即0.2Te，Te表示DALI标准中的1一个half-bit时间，约为416.7us )；0xFFFF：表示时间长度超过0xFFFE表示的值（约为5161ms，即5.16s）
 
-###### DATT  Status
+###### DATT Status
 
 | 名称                     | 数值 | 含义                                                         |
 | ------------------------ | ---- | ------------------------------------------------------------ |
@@ -1165,6 +1165,10 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 
 ##### DALI 控制装置控制、配置和查询
 
+DALI总线每次只能传输2个字节的前向帧，设备返回1个字节的后向帧作为应答，效率很低。主机若参与每次传输的控制流程，也较为繁琐。因此模块也为典型应用提供了一些较为高级的宏命令（Macro）接口，这些接口可能涉及到DALI总线山多个传输过程，但是主机只需要监测模块返回的最终结果的确认或者响应命令，无需了解细节。
+
+如果这里的应用接口不能满足主机的需求，主机仍然可以使用 [DALI 透传接口](#DALI 透传接口)完成所要的功能。
+
 ###### DAA_CG_DAPC
 
 直接电弧功率控制。Data 部分格式：
@@ -1172,6 +1176,8 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 | 1 byte  | 1 byte  | 1 byte |
 | :-----: | :-----: | :----: |
 | Channel | Address | Level  |
+
+其中，
 
 * Channel：DALI 通道。
 * Address：目标控制装置地址。0~63：短地址；64~79：（64+组地址）；126：广播（未分配地址设备）；127：广播（所有设备）。
@@ -1187,7 +1193,31 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 | :-----: | :-----: | :----: | :----: |
 | Channel | Address | Level  | Status |
 
+其中，
 
+* Channel：和请求帧中的字段含义相同。
+* Address：和请求帧中的字段含义相同。
+* Level：和请求帧中的字段含义相同。
+* Status：命令执行结果状态。具体含义参考 [DALI宏命令执行结果状态](#DALI宏命令执行结果状态)。
+
+
+
+**DALI宏命令执行结果状态**
+
+| 名称                              | 数值 | 含义                                                       |
+| --------------------------------- | ---- | ---------------------------------------------------------- |
+| DALI_MACRO_RESULT_OK              | 0    | 宏命令执行成功                                             |
+| DALI_MACRO_RESULT_BUS_ERR         | 1    | 总线故障                                                   |
+| DALI_MACRO_RESULT_MODE_INIT       | 2    | DALI在初始化过程中                                         |
+| DALI_MACRO_RESULT_MODE_QUIESCENT  | 3    | DALI处在静默模式（多主机系统接受到其他主机的请求静默命令） |
+| DALI_MACRO_RESULT_TX_BUF_FULL     | 4    | 发送缓冲区满                                               |
+| DALI_MACRO_RESULT_CHANNEL_NA      | 5    | DALI通道不可用                                             |
+| DALI_MACRO_RESULT_INVALID_PARA    | 6    | DALI宏命令携带非法参数                                     |
+| DALI_MACRO_RESULT_BUSY_RUNNING    | 7    | 当前有其他宏命令在运行                                     |
+| DALI_MACRO_RESULT_NO_RSPD         | 8    | 目标设备没有响应                                           |
+| DALI_MACRO_RESULT_TRASHED         | 9    | 目标设备响应但数据帧损坏（通常为多个设备响应）             |
+| DALI_MACRO_RESULT_TERMINATED      | 10   | 主机发送宏命令终止请求后停止执行                           |
+| DALI_MACRO_RESULT_UNKNOWN_FAILURE | 255  | 未知故障                                                   |
 
 ###### DAA_CG_CTRL
 
@@ -1215,6 +1245,12 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 | :-----: | :-----: | :----: |
 | Channel | Address | OpCode |
 
+其中，
+
+* Channel：DALI 通道。
+* Address：目标控制装置地址。0~63：短地址；64~79：（64+组地址）；126：广播（未分配地址设备）；127：广播（所有设备）。
+* OpCode：控制装置控制指令码。参考上述列表。
+
 先返回 AckNack，在命令执行后返回 DAA_CG_CTRL_CFM。
 
 **DAA_CG_CTRL_CFM**
@@ -1223,7 +1259,12 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 | :-----: | :-----: | :----: | :----: |
 | Channel | Address | OpCode | Status |
 
+其中，
 
+* Channel：和请求帧中的字段含义相同。
+* Address：和请求帧中的字段含义相同。
+* OpCode：和请求帧中的字段含义相同。
+* Status：命令执行结果状态。具体含义参考 [DALI宏命令执行结果状态](#DALI宏命令执行结果状态)。
 
 ###### DAA_CG_CFG
 
@@ -1254,11 +1295,21 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 
 命令Data格式：
 
-| 1 byte  | 1 byte  | 1 byte | 1 byte |
-| :-----: | :-----: | :----: | :----: |
-| Channel | Address | OpCode | Value  |
+| 1 byte  | 1 byte  | 1 byte | 1 byte  | 1 byte |
+| :-----: | :-----: | :----: | :-----: | :----: |
+| Channel | Address | OpCode | Options | Value  |
 
-先返回 AckNack，在命令执行后返回 命令 DAA_CG_CFG_CFM。
+其中，
+
+* Channel：通道。
+* Address：DALI 设备地址。
+* OpCode：DALI 102 控制装置命令，参考上面所列的配置命令列表。
+* Options：选项字节。
+  * bit[1:0]： DTR0Mode，指示是否自动设置DTR0为Value数值。0：Auto，自动由模块根据标准中配置命令的DTR0需求决定；1：ForceSet，强制自动设置DTR0；2：ForceNotSet，强制不自动设置DTR0；3：保留未用。
+  * bit[7:2]：保留未用。
+* Value：数值。当需要自动设置数值时，模块将其作为DTR0的值发送出去。
+
+先返回 AckNack，在命令执行后返回确认命令 DAA_CG_CFG_CFM。
 
 **DAA_CG_CFG_CFM**
 
@@ -1266,7 +1317,12 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 | :-----: | :-----: | :----: | :----: |
 | Channel | Address | OpCode | Status |
 
+其中，
 
+* Channel：和请求帧中的字段含义相同。
+* Address：和请求帧中的字段含义相同。
+* OpCode：和请求帧中的字段含义相同。
+* Status：状态。具体含义参考 [DALI宏命令执行结果状态](#DALI宏命令执行结果状态)。
 
 ###### DAA_CG_QUERY
 
@@ -1315,6 +1371,12 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 | :-----: | :-----: | :----: |
 | Channel | Address | OpCode |
 
+其中，
+
+* Channel：通道。
+* Address：DALI 设备地址。
+* OpCode：DALI 102 控制装置命令，参考上面所列的配置命令列表。
+
 先返回AckNack，命令执行后再返回 DAA_CG_QUERY_RSP。
 
 **DAA_CG_QUERY_RSP**
@@ -1323,7 +1385,12 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 | :-----: | :-----: | :----: | :----: | :----: |
 | Channel | Address | OpCode | Status | Answer |
 
+其中，
 
+* Channel：和请求帧中的字段含义相同。
+* Address：和请求帧中的字段含义相同。
+* OpCode：和请求帧中的字段含义相同。
+* Status：状态。具体含义参考 [DALI宏命令执行结果状态](#DALI宏命令执行结果状态)。
 
 ###### DAA_CG_MB_READ
 
