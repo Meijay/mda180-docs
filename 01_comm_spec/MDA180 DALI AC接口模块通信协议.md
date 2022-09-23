@@ -1163,7 +1163,9 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
   * AddressingState=Running时，表示对设备短地址分配（编程）的结果。0： 失败，未完成分配；255：成功，对单个设备完成地址分配；254：分配失败，存在多个设备（地址重复）；253：未知错误； 252：DeviceNotResponding，设备不响应；251：总线上设备超过64个；250：没有可供分配的短地址；249：Timeout，超时；1~252：保留未用。
   * AddressingState为其他值时，表示新增完成地址分配的设备数量，0~64。
 
-##### DAA_CG_DAPC
+##### DALI 控制装置控制、配置和查询
+
+###### DAA_CG_DAPC
 
 直接电弧功率控制。Data 部分格式：
 
@@ -1179,7 +1181,7 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 
 先返回 AckNack，在命令执行后返回 DAA_CG_DAPC_CFM。
 
-**DAA_CG_CTRL_CFM**
+**DAA_CG_DAPC_CFM**
 
 | 1 byte  | 1 byte  | 1 byte | 1 byte |
 | :-----: | :-----: | :----: | :----: |
@@ -1187,7 +1189,7 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 
 
 
-##### DAA_CG_CTRL
+###### DAA_CG_CTRL
 
 发送DALI 102 控制命令，控制命令无需DALI总线设备响应。包括以下命令：
 
@@ -1223,7 +1225,7 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 
 
 
-##### DAA_CG_CFG
+###### DAA_CG_CFG
 
 发送DALI 102 配置命令，配置命令一般带有参数，无需DALI总线设备回复，一般需要连续发送两次 （Send-twice)。包括以下命令：
 
@@ -1266,7 +1268,7 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 
 
 
-##### DAA_CG_QUERY
+###### DAA_CG_QUERY
 
 发送DALI 102 查询命令，查询命令可以无需参数或者带有参数，需要DALI总线设备回复。包括以下命令：
 
@@ -1323,7 +1325,7 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 
 
 
-##### DAA_CG_MB_READ
+###### DAA_CG_MB_READ
 
 读取102 控制装置的MemoryBank。
 
@@ -1339,9 +1341,9 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
 
 
 
-##### DAA_CG_MB_WRITE
+###### DAA_CG_MB_WRITE
 
-##### DAA_CG_MB_ACCESS
+###### DAA_CG_MB_ACCESS
 
 DALI 控制装置Memory Bank操作。
 
@@ -1355,11 +1357,11 @@ DALI 控制装置Memory Bank操作。
 
 
 
-##### DAA_CG_APP_CTRL
+###### DAA_CG_APP_CTRL
 
-##### DAA_CG_APP_CFG
+###### DAA_CG_APP_CFG
 
-##### DAA_CG_APP_QUERY
+###### DAA_CG_APP_QUERY
 
 #### DALI 控制设备应用接口
 
