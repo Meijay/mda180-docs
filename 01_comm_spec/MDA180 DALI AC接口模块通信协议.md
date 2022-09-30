@@ -276,12 +276,14 @@ PDU定义如下：
 | DAA_CG_MB_READ_RSP | 0xB8 | 1 | AsyncReport |  |DAA_CG_MB_READ|
 | **DAA_CG_MB_WRITE**       | 0x39 | 0         | AsyncRequest | DALI控制装置MemoryBank写入 |AckNack，DAA_CG_MB_WRITE_CFM|
 | DAA_CG_MB_WRITE_CFM | 0xB9 | 1 | AsyncReport |  |DAA_CG_MB_WRITE|
-| **DAA_CG_APP_CTRL**       | 0x3A | 0       | AsyncRequest | DALI控制装置扩展控制       |AckNack，DAA_CG_APP_CTRL_CFM|
-| DAA_CG_APP_CTRL_CFM | 0xBA | 1 | AsyncReport |  |DAA_CG_APP_CTRL|
-| **DAA_CG_APP_CFG**        | 0x3B | 0         | AsyncRequest | DALI控制装置扩展配置       |AckNack，DAA_CG_APP_CFG_CFM|
-| DAA_CG_APP_CFG_CFM | 0xBB | 1 | AsyncReport |  |DAA_CG_APP_CFG|
-| **DAA_CG_APP_QUERY**      | 0x3C | 0         | AsyncRequest | DALI控制装置扩展查询       |AckNack，DAA_CG_APP_QUERY_RSP|
-| DAA_CG_APP_QUERY_RSP | 0xBC | 1 | AsyncReport |  |DAA_CG_APP_QUERY|
+| **DAA_CG_MB_RESET** | 0x3A | 0 | AsyncRequest | DALI控制装置MemoryBank复位 |AckNack，DAA_CG_MB_RESET_CFM|
+| DAA_CG_MB_RESET_CFM | 0xBA | 1 | AsyncReport | |DAA_CG_MB_RESET|
+| **DAA_CG_APP_CTRL**       | 0x3B | 0       | AsyncRequest | DALI控制装置扩展控制       |AckNack，DAA_CG_APP_CTRL_CFM|
+| DAA_CG_APP_CTRL_CFM | 0xBB | 1 | AsyncReport |  |DAA_CG_APP_CTRL|
+| **DAA_CG_APP_CFG**        | 0x3C | 0         | AsyncRequest | DALI控制装置扩展配置       |AckNack，DAA_CG_APP_CFG_CFM|
+| DAA_CG_APP_CFG_CFM | 0xBC | 1 | AsyncReport |  |DAA_CG_APP_CFG|
+| **DAA_CG_APP_QUERY**      | 0x3D | 0         | AsyncRequest | DALI控制装置扩展查询       |AckNack，DAA_CG_APP_QUERY_RSP|
+| DAA_CG_APP_QUERY_RSP | 0xBD | 1 | AsyncReport |  |DAA_CG_APP_QUERY|
 | **DAA_CG_INFO_READ** | 0x40 | 0 | AsyncRequest | DALI控制装置信息读取 |AckNack，DAA_CG_INFO_READ_RSP|
 | DAA_CG_INFO_READ_RSP | 0xC0 | 1 | AsyncReport |  |DAA_CG_INFO_READ|
 | **DAA_CG_VARS_READ** | 0x41 | 0 | AsyncRequest | DALI控制装置变量读取 |AckNack，DAA_CG_VARS_READ_RSP|
