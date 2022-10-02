@@ -1,6 +1,6 @@
 # MDA180 DALI AC 接口模块通信协议
 
-版本：v0.14， 更新日期：2022-09-20
+版本：v0.15， 更新日期：2022-10-02
 
 2022(c) 南京美加杰智能科技有限公司 www.meijay.com
 
@@ -164,7 +164,8 @@ FrameType指示数据帧的类型。
 | 1        | Illegal Frame      | 非法数据帧，FrameType不是模块支持的类型。 |
 | 2        | Module Buffer Full | 模块接收缓冲区满，无法接收数据帧。        |
 | 3        | Module Not Ready   | 模块未就绪，无法处理所请求的命令。        |
-| 4~255    | Reserved           | 保留未用。                                |
+| 4        | UnsupportedCmdId   | 不支持的CmdId。                           |
+| 5~255    | Reserved           | 保留未用。                                |
 
 
 
@@ -316,11 +317,70 @@ PDU定义如下：
 
 ##### SYS_RESET_REQ
 
+Data 内容定义如下：
 
+| 1 byte    |
+| --------- |
+| ResetType |
+
+其中，
+
+* ResetType：1字节，复位类型。0：软件复位；1：复位到Bootloader（暂时不支持）；其他：保留未用。
+
+回复 AckNack。
+
+在软件复位完成后，模块主动发送 SYS_RESET_IND。
 
 ##### SYS_RESET_IND
 
+Data 内容定义如下：
+
+| 1 byte   | 1 byte      | 1 byte   | 1 byte    | 1 byte     | 1 byte     | 1 byte     | 1 byte     | 1 byte     |
+| -------- | ----------- | -------- | --------- | ---------- | ---------- | ---------- | ---------- | ---------- |
+| ResetSrc | ProtocolVer | VendorId | ProductId | FWVerMajor | FWVerMinor | FWVerPatch | HWVerMajor | HWVerMinor |
+
+其中，
+
+* ResetSrc： 1字节，复位源。0： 上电复位；1：外部Reset信号复位；2：看门狗复位；3：软件复位；其他：保留未用。
+* ProtocolVer：1字节，模块接口协议版本。Bit[7:4]: MajorVer，0~15，主版本号；Bit[3:0]:MinorVer，0~15，次版本号。
+* VendorId：1字节，厂商标识。0x00：Meijay；其他：待分配。
+* ProductId：1字节，产品标识。0x00：MDA180；0x01：MDA182;其他：待分配。
+* FWVerMajor：1字节，固件主版本号。
+* FWVerMinor：1字节，固件次版本号。
+* FWVerPatch：1字节，固件补丁版本号。
+* HWVerMajor：1字节，硬件主版本号。
+* HWVerMinor：1字节，硬件次版本号。
+
+
+
 #### 系统版本和信息查询
+
+##### SYS_VERSION
+
+查询系统版本信息，包括协议版本、固件版本和硬件版本。
+
+Data 内容为空。
+
+模块回复 SYS_VERSION_RSP。
+
+##### SYS_VERSION_RSP
+
+Data 内容定义如下：
+
+| 1 byte      | 1 byte     | 1 byte     | 1 byte     | 1 byte     | 1 byte     |
+| ----------- | ---------- | ---------- | ---------- | ---------- | ---------- |
+| ProtocolVer | FWVerMajor | FWVerMinor | FWVerPatch | HWVerMajor | HWVerMinor |
+
+其中，
+
+* ProtocolVer：1字节，模块接口协议版本。Bit[7:4]: MajorVer，0~15，主版本号；Bit[3:0]:MinorVer，0~15，次版本号。
+* FWVerMajor：1字节，固件主版本号。
+* FWVerMinor：1字节，固件次版本号。
+* FWVerPatch：1字节，固件补丁版本号。
+* HWVerMajor：1字节，硬件主版本号。
+* HWVerMinor：1字节，硬件次版本号。
+
+
 
 #### 系统配置参数
 
@@ -334,34 +394,78 @@ NV配置数据在模块重启复位后仍然有效，VOL配置数据需要每次
 
 格式：CfgId 
 
+Data 内容定义如下：
+
+| 1 byte    | 1 byte   |
+| --------- | -------- |
+| CfgIdHigh | CfgIdLow |
+
+其中，
+
+* CfgIdHigh：1字节，配置项目Id高字节。
+* CfgIdLow：1字节，配置项目Id低字节。
+
+回复： SYS_READ_CFG_RSP。
+
+##### SYS_READ_CFG_RSP
+
+Data 内容定义如下：
+
+| 1 byte | 1 byte    | 1 byte   | 1 byte        | 1..N byte(s) |
+| ------ | --------- | -------- | ------------- | ------------ |
+| Status | CfgIdHigh | CfgIdLow | CfgDataLength | CfgData      |
+
+其中，
+
+* Status: 1字节，配置读取状态。0：Success，成功；1：InvalidCfgId，配置项Id不合法；2：CfgIdNotSupported，配置项Id不支持；其他：保留未用。
+* CfgIdHigh：1字节，配置项目Id高字节。
+* CfgIdLow：1字节，配置项目Id低字节。
+* CfgDataLength：1字节，配置项目数据长度。
+* CfgData：1~N字节，配置项目数据。
 
 
-回复： SYS_READ_CFG_RSP
-
-Status | CfgId | CfgLength | CfgValue 
 
 ##### SYS_WRITE_CFG
 
 写入配置参数。
 
-格式：CfgId | CfgLength | CfgValue 
+Data 内容定义如下：
 
+| 1 byte    | 1 byte   | 1 byte        | 1..N byte(s) |
+| --------- | -------- | ------------- | ------------ |
+| CfgIdHigh | CfgIdLow | CfgDataLength | CfgData      |
 
+其中，
 
-回复：SYS_WRITE_CFG_RSP
+* CfgIdHigh：1字节，配置项目Id高字节。
+* CfgIdLow：1字节，配置项目Id低字节。
+* CfgDataLength：1字节，配置项目数据长度。
+* CfgData：1~N字节，配置项目数据。
 
-格式：Status
+模块回复 SYS_WRITE_CFG_RSP。
 
+##### SYS_WRITE_CFG_RSP
 
+Data 内容定义如下：
+
+| 1 byte | 1 byte    | 1 byte   |
+| ------ | --------- | -------- |
+| Status | CfgIdHigh | CfgIdLow |
+
+其中，
+
+* Status: 1字节，配置读取状态。0：Success，成功；1：InvalidCfgId，配置项Id不合法；2：CfgIdNotSupported，配置项Id不支持；3：InvalidDataValue，写入数据数值不合法；其他：保留未用。
+* CfgIdHigh：1字节，配置项目Id高字节。
+* CfgIdLow：1字节，配置项目Id低字节。
 
 **系统参数列表**
 
-| ParameterId（2 bytes） | DataType（1 byte） | 名称                   | 说明                                                         |
-| ---------------------- | ------------------ | ---------------------- | ------------------------------------------------------------ |
-| 0x0010                 | BOOL               | NV_DATT_MONITOR_ENABLE | DALI透传监控使能，开启后模块将返回所有接收到的总线数据，包括异常数据，一般用于总线监控分析。默认为false。 |
-| 0x0011                 | BOOL               | NV_DATT_NO_WAIT_REPLY  | DALI透传等待响应，开启后每次透传均等待总线从机响应直到后向帧超时。默认为false。 |
-| ~~0x0012~~             | ~~BOOL~~           | ~~NV_DATT_ECHO~~       | ~~DALI透传自发数据帧回复使能，开启后每次透传发送的数据也会返回，否则只返回命令已发送的确认帧。默认为false。~~ |
-|                        |                    |                        |                                                              |
+| CfgId（2 bytes） | 数据类型（1 byte） | 名称                   | 说明                                                         |
+| :--------------: | :----------------: | :--------------------- | ------------------------------------------------------------ |
+|      0x0010      |        BOOL        | NV_DATT_MONITOR_ENABLE | DALI透传监控使能，开启后模块将返回所有接收到的总线数据，包括异常数据，一般用于总线监控分析。默认为false。 |
+|      0x0011      |        BOOL        | NV_DATT_NO_WAIT_REPLY  | DALI透传等待响应，开启后每次透传均等待总线从机响应直到后向帧超时。默认为false。 |
+|    ~~0x0012~~    |      ~~BOOL~~      | ~~NV_DATT_ECHO~~       | ~~DALI透传自发数据帧回复使能，开启后每次透传发送的数据也会返回，否则只返回命令已发送的确认帧。默认为false。~~ |
+|                  |                    |                        |                                                              |
 
 
 
@@ -532,6 +636,20 @@ Data 内容定义如下：
 
 Data 内容定义如下：
 
+| 1 byte  |
+| ------- |
+| Channel |
+
+其中，
+
+* Channel：DALI通道。
+
+##### DACM_BPS_STATUS_RSP
+
+包括DALI BPS 开启状态和故障信息。
+
+Data 内容定义如下：
+
 | 1 byte  | 1 byte | 1 byte     |
 | ------- | ------ | ---------- |
 | Channel | BPSOn  | BPSFailure |
@@ -541,21 +659,6 @@ Data 内容定义如下：
 * Channel：DALI通道。
 * BPSOn：集成总线电源是否开启。
 * BPSFailure：总线电源是否存在故障。
-
-##### DACM_BPS_STATUS_RSP
-
-包括回路控制节点状态开启状态信息。
-
-Data 内容定义如下：
-
-| 1 byte  | 1 byte |
-| ------- | :----: |
-| Channel | BPSOn  |
-
-其中，
-
-* Channel：通道号。
-* BPSOn：集成总线电源是否开启。
 
 ### DALI 透传接口
 DALI 透传接口适用于主机自行实现DALI应用层管理，支持在模块DALI通道总线上收发DALI数据帧。
@@ -1128,7 +1231,7 @@ DAA_CG_ADDRESSING 命令PDU的data部分内容为：
 * NoIntInd：No Intermediate Indication，不需要分配过程中汇报进度。0：分配过程中汇报状态变化；1：不汇报，直到分配完成后才汇报分配结果。
 * UnaddrOnly：Unaddressed Only,只对未分配地址执行地址分配。0：已有地址的设备将会先被删除地址，然后对所有设备执行地址重新分配，适用于全新安装；1：仅对未分配地址的设备执行地址分配，用于系统扩展。
 
-###### DAA_CG_ADDESSING_WITH_MASK
+###### DAA_CG_ADDRESSING_WITH_MASK
 
 DAA_CG_ADDESSING_WITH_MASK命令PDU的data部分内容为：
 
