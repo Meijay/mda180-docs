@@ -1,6 +1,6 @@
 # MDA180 DALI AC 接口模块通信协议
 
-版本：v0.15， 更新日期：2022-10-12
+版本：v1.0， 更新日期：2022-10-18
 
  2022(c) 南京美加杰智能科技有限公司 www.meijay.com
 
@@ -14,7 +14,7 @@
 
 #### 硬件接口
 
-硬件接口默认为通用异步串行口(UART)，3.3V TTL逻辑电平。
+硬件接口默认为通用异步串行口(UART)，3.3V TTL逻辑电平。如果通过RS232收发器转换为RS232接口，参数和传输时序均保持不变。
 
 引脚包括：
 
@@ -248,8 +248,8 @@ PDU定义如下：
 | **DACM_CONTACT_STATUS**     | 0x16 | 0         | SyncRequest  | 获取DALI通道对应的回路干接点信号状态 | DACM_CONTACT_STATUS_RSP |
 | **DACM_CONTACT_STATUS_RSP** | 0x96 | 1         | SyncResponse | DALI通道对应的回路干接点信号状态响应 | DACM_CONTACT_STATUS |
 | **DACM_BPS_CTRL** | 0x17 | 0 | SyncRequest | DALI总线电源控制 | AckNack |
-| **DACM_BPS_STAUS** | 0x18 | 0 | SyncRequest | DALI总线电源状态获取 | DACM_BPS_STAUS_RSP |
-| **DACM_BPS_STAUS_RSP** | 0x98 | 1 | SyncResponse | DALI总线电源状态获取响应 | DACM_BPS_STAUS |
+| **DACM_BPS_STATUS** | 0x18 | 0 | SyncRequest | DALI总线电源状态获取 | DACM_BPS_STATUS_RSP |
+| **DACM_BPS_STATUS_RSP** | 0x98 | 1 | SyncResponse | DALI总线电源状态获取响应 | DACM_BPS_STATUS |
 | **DATT_SEND**      | 0x20 | 0         | AsyncRequest | 发送DALI总线数据 | AckNack，DATT_DATA_IND |
 | **DATT_SEND8**     | 0x21 | 0         | AsyncRequest | 发送8bit数据     | AckNack，DATT_DATA_IND |
 | **DATT_SEND16**    | 0x22 | 0         | AsyncRequest | 发送16bit数据    | AckNack，DATT_DATA_IND |
@@ -332,6 +332,12 @@ Data 内容定义如下：
 在软件复位完成后，模块主动发送 SYS_RESET_IND。
 
 ##### SYS_RESET_IND
+
+在上电复位和接收SYS_RESET完成复位后，主动发送。
+
+仅适用于UART或者RS232接口，对于RS485接口，不发送。
+
+
 
 Data 内容定义如下：
 
@@ -1182,7 +1188,7 @@ DAA_CG_DISC_IND 数据帧的PDU data定义如下：
 * Channel：DALI 通道编号。
 * DiscState：搜索状态，取值0~15。0： Running，进行中未完成；1：Finished，正常结束；2：Pending， 设备或者总线忙，等待；3：Exception， 异常退出； 4~15：保留 。
 * TargetAddr：当前搜索的目标设地址。0~63：短地址；126：未分配地址的所有设备，仅当没有搜索到设备时使用；127：所有设备，仅当DiscState为Finished时使用。
-* Present：当前搜索设备短地址是否存在的结果。仅当DiscState为Running时，汇报单个短地址搜索结果。0： NO，不存在；255：YES，存在单个设备；254：存在多个设备（地址重复）；253：未知错误。1~252：保留未用。
+* Present：当前搜索设备短地址是否存在的结果。仅当DiscState为Running时，汇报单个短地址搜索结果。0： NO，不存在；1：YES，存在单个设备；2：存在多个设备（地址重复）；3：未知错误。4~255：保留未用。
 * PresentMap：总线地址搜索结果分布。仅当DiscState为Finished时，汇报整个地址空间搜索的结果。
   * 16 bytes，共128 bits。 
   * 高位在前，每2个bit表示一个ShortAddress扫描的结果。
