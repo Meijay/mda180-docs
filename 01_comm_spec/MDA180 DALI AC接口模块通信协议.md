@@ -1,12 +1,12 @@
 # MDA180 DALI AC 接口模块通信协议
 
-版本：v1.0.1， 更新日期：2022-10-24
+版本：v1.0， 更新日期：2022-10-24
 
  2022(c) 南京美加杰智能科技有限公司 www.meijay.com
 
 
 
-本文档定义了MDA180 DALI **ACIP** （**A**pplication **C**ontroller **I**nterface **P**rotocal，应用控制器模块接口通信协议)。
+本文档定义了MDA180 DALI **ACIP** （**A**pplication **C**ontroller **I**nterface **P**rotocol，应用控制器模块接口通信协议)。
 
 ## 接口 
 
