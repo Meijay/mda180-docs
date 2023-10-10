@@ -1,6 +1,6 @@
 # MDA180 DALI AC 接口模块通信协议
 
-版本：v1.0， 更新日期：2022-10-24
+版本：v1.0， 更新日期：2023-10-10
 
  2022(c) 南京美加杰智能科技有限公司 www.meijay.com
 
@@ -1269,10 +1269,7 @@ DAA_CG_ADDRESSING_IND数据帧的PDU data定义如下：
   * AddressingState=Running时，表示当前尝试分配的设备短地址（0~63）。
   * AddressingState=Finished时，固定为0xFF。
   * AddressingState为其他值时，0~63表示结束时正在分配的地址，0xFF表示无可用合法地址。
-
-* AddressingResult：
-  * AddressingState=Running时，表示对设备短地址分配（编程）的结果。0： 失败，未完成分配；255：成功，对单个设备完成地址分配；254：分配失败，存在多个设备（地址重复）；253：未知错误； 252：DeviceNotResponding，设备不响应；251：总线上设备超过64个；250：没有可供分配的短地址；249：Timeout，超时；1~252：保留未用。
-  * AddressingState为其他值时，表示新增完成地址分配的设备数量，0~64。
+* AddressingResult：表示对设备短地址分配（编程）的结果。0： 失败，未完成分配；255：成功，对单个设备完成地址分配；254：分配失败，存在多个设备（地址重复）；253：未知错误； 252：DeviceNotResponding，设备不响应；251：总线上设备超过64个；250：没有可供分配的短地址；249：Timeout，超时；1~252：保留未用。
 
 ##### DALI 控制装置控制、配置和查询
 
